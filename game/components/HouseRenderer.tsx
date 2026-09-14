@@ -43,6 +43,10 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
   const selectedPlacedWallId = useRenovationStore((state) => state.selectedPlacedWallId);
   const setSelectedPlacedWallId = useRenovationStore((state) => state.setSelectedPlacedWallId);
 
+  const selectedPlacedBlockId = useRenovationStore((state) => state.selectedPlacedBlockId);
+  const setSelectedPlacedBlockId = useRenovationStore((state) => state.setSelectedPlacedBlockId);
+  const deleteRoomBlock = useRenovationStore((state) => state.deleteRoomBlock);
+
   const gridSnapEnabled = useRenovationStore((state) => state.gridSnapEnabled);
   const gridSnapSize = useRenovationStore((state) => state.gridSnapSize);
   const snapToGrid = useRenovationStore((state) => state.snapToGrid);
@@ -90,6 +94,30 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
 
   return (
     <group>
+      {/* 0. Render Room / Block Bounding Outlines */}
+      {(activeProperty.roomBlocks || []).map((block) => {
+        const isSelected = selectedPlacedBlockId === block.id;
+        const minX = Math.min(block.start[0], block.end[0]);
+        const maxX = Math.max(block.start[0], block.end[0]);
+        const minZ = Math.min(block.start[2], block.end[2]);
+        const maxZ = Math.max(block.start[2], block.end[2]);
+        const width = Math.max(0.2, maxX - minX);
+        const depth = Math.max(0.2, maxZ - minZ);
+        const height = block.height || 2.8;
+        const centerX = (minX + maxX) / 2;
+        const centerZ = (minZ + maxZ) / 2;
+        const centerY = block.start[1] + height / 2;
+
+        if (!isSelected) return null;
+
+        return (
+          <mesh key={block.id} position={[centerX, centerY, centerZ]}>
+            <boxGeometry args={[width + 0.1, height + 0.1, depth + 0.1]} />
+            <meshBasicMaterial color="#10b981" wireframe={true} />
+          </mesh>
+        );
+      })}
+
       {/* 1. Render Walls */}
       {activeProperty.walls.map((wall) => {
         if (wall.isDemolished) return null;

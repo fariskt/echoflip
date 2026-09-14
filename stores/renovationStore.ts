@@ -11,8 +11,11 @@ import type {
   WallSegment,
   FlooringTile,
   FurnitureObject,
-  FixtureObject
+  FixtureObject,
+  RoomBlock,
+  RoomBlockType
 } from '../types/renovation';
+import { generateRoomBlockElements } from '../game/utils/roomBlockGenerator';
 
 export const WALL_BLOCK_PRESETS: WallBlockPreset[] = [
   { id: 'wall_drywall', name: 'Standard Drywall Block', color: '#cbd5e1', price: 40, type: 'drywall' },
@@ -69,7 +72,31 @@ export interface RenovationState {
   selectedWallBlock: WallBlockPreset;
   selectedPlacedFurnitureId: string | null;
   selectedPlacedWallId: string | null;
+  selectedPlacedBlockId: string | null;
   placementRotation: [number, number, number];
+
+  // Room / Block Creation State
+  activeRoomBlockType: RoomBlockType;
+  roomBlockHeight: number;
+  roomBlockWallThickness: number;
+  includeCeiling: boolean;
+
+  // Undo / Redo Stacks
+  undoStack: RenovationProperty[];
+  redoStack: RenovationProperty[];
+
+  // Mobile Touch Movement State
+  mobileMoveState: {
+    forward: boolean;
+    backward: boolean;
+    left: boolean;
+    right: boolean;
+    up: boolean;
+    down: boolean;
+    turnLeft: boolean;
+    turnRight: boolean;
+  };
+  setMobileMove: (dir: 'forward' | 'backward' | 'left' | 'right' | 'up' | 'down' | 'turnLeft' | 'turnRight', active: boolean) => void;
 
   activeProperty: RenovationProperty | null;
   activeContract: RenovationContract | null;
@@ -89,6 +116,22 @@ export interface RenovationState {
   setSelectedWallBlock: (preset: WallBlockPreset) => void;
   setSelectedPlacedFurnitureId: (id: string | null) => void;
   setSelectedPlacedWallId: (id: string | null) => void;
+  setSelectedPlacedBlockId: (id: string | null) => void;
+
+  setActiveRoomBlockType: (type: RoomBlockType) => void;
+  setRoomBlockHeight: (height: number) => void;
+  setRoomBlockWallThickness: (thickness: number) => void;
+  setIncludeCeiling: (include: boolean) => void;
+
+  createRoomBlock: (block: Omit<RoomBlock, 'id'>) => string;
+  deleteRoomBlock: (blockId: string) => void;
+  duplicateRoomBlock: (blockId: string) => void;
+  updateRoomBlock: (blockId: string, updates: Partial<RoomBlock>) => void;
+
+  pushUndoState: () => void;
+  undo: () => void;
+  redo: () => void;
+
   setPlacementRotation: (rot: [number, number, number]) => void;
   rotatePlacementYaw: (deltaDeg?: number) => void;
   tiltPlacementPitch: (deltaDeg?: number) => void;
@@ -149,9 +192,182 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
   setSelectedFurniture: (item) => set({ selectedFurniture: item }),
   setSelectedWallBlock: (preset) => set({ selectedWallBlock: preset }),
   selectedPlacedFurnitureId: null,
-  setSelectedPlacedFurnitureId: (id) => set({ selectedPlacedFurnitureId: id, selectedPlacedWallId: null }),
+  setSelectedPlacedFurnitureId: (id) => set({ selectedPlacedFurnitureId: id, selectedPlacedWallId: null, selectedPlacedBlockId: null }),
   selectedPlacedWallId: null,
-  setSelectedPlacedWallId: (id) => set({ selectedPlacedWallId: id, selectedPlacedFurnitureId: null }),
+  setSelectedPlacedWallId: (id) => set({ selectedPlacedWallId: id, selectedPlacedFurnitureId: null, selectedPlacedBlockId: null }),
+  selectedPlacedBlockId: null,
+  setSelectedPlacedBlockId: (id) => set({ selectedPlacedBlockId: id, selectedPlacedFurnitureId: null, selectedPlacedWallId: null }),
+
+  activeRoomBlockType: 'full_room',
+  roomBlockHeight: 2.8,
+  roomBlockWallThickness: 0.2,
+  includeCeiling: true,
+
+  undoStack: [],
+  redoStack: [],
+
+  mobileMoveState: {
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    turnLeft: false,
+    turnRight: false
+  },
+  setMobileMove: (dir, active) => set((state) => ({
+    mobileMoveState: { ...state.mobileMoveState, [dir]: active }
+  })),
+
+  setActiveRoomBlockType: (type) => set({ activeRoomBlockType: type }),
+  setRoomBlockHeight: (height) => set({ roomBlockHeight: Math.max(0.5, Math.min(10, height)) }),
+  setRoomBlockWallThickness: (thickness) => set({ roomBlockWallThickness: Math.max(0.05, Math.min(1, thickness)) }),
+  setIncludeCeiling: (include) => set({ includeCeiling: include }),
+
+  pushUndoState: () => {
+    const { activeProperty, undoStack } = get();
+    if (!activeProperty) return;
+    const snapshot: RenovationProperty = JSON.parse(JSON.stringify(activeProperty));
+    set({
+      undoStack: [...undoStack.slice(-20), snapshot],
+      redoStack: []
+    });
+  },
+
+  undo: () => {
+    const { activeProperty, undoStack, redoStack, showToast } = get();
+    if (undoStack.length === 0 || !activeProperty) {
+      showToast('Nothing to undo');
+      return;
+    }
+    const previous = undoStack[undoStack.length - 1];
+    const currentSnapshot: RenovationProperty = JSON.parse(JSON.stringify(activeProperty));
+    set({
+      activeProperty: previous,
+      undoStack: undoStack.slice(0, -1),
+      redoStack: [...redoStack, currentSnapshot]
+    });
+    showToast('Undo performed ↺');
+  },
+
+  redo: () => {
+    const { activeProperty, undoStack, redoStack, showToast } = get();
+    if (redoStack.length === 0 || !activeProperty) {
+      showToast('Nothing to redo');
+      return;
+    }
+    const next = redoStack[redoStack.length - 1];
+    const currentSnapshot: RenovationProperty = JSON.parse(JSON.stringify(activeProperty));
+    set({
+      activeProperty: next,
+      redoStack: redoStack.slice(0, -1),
+      undoStack: [...undoStack, currentSnapshot]
+    });
+    showToast('Redo performed ↻');
+  },
+
+  createRoomBlock: (blockData) => {
+    const { activeProperty, pushUndoState, showToast } = get();
+    if (!activeProperty) return '';
+
+    pushUndoState();
+
+    const id = 'block_' + Math.random().toString(36).substring(2, 9);
+    const newBlock: RoomBlock = {
+      ...blockData,
+      id,
+      createdAt: Date.now()
+    };
+
+    const generated = generateRoomBlockElements(newBlock);
+
+    const updatedBlocks = [...(activeProperty.roomBlocks || []), newBlock];
+    const updatedWalls = [...activeProperty.walls, ...generated.walls];
+    const updatedFloors = [...activeProperty.floors, ...generated.floors];
+
+    set({
+      activeProperty: {
+        ...activeProperty,
+        roomBlocks: updatedBlocks,
+        walls: updatedWalls,
+        floors: updatedFloors
+      }
+    });
+
+    showToast(`Created ${newBlock.type.replace('_', ' ').toUpperCase()} Block!`);
+    return id;
+  },
+
+  deleteRoomBlock: (blockId) => {
+    const { activeProperty, pushUndoState, showToast } = get();
+    if (!activeProperty) return;
+
+    pushUndoState();
+
+    const updatedBlocks = (activeProperty.roomBlocks || []).filter(b => b.id !== blockId);
+    const updatedWalls = activeProperty.walls.filter(w => w.roomId !== blockId);
+    const updatedFloors = activeProperty.floors.filter(f => f.roomId !== blockId);
+
+    set({
+      selectedPlacedBlockId: null,
+      activeProperty: {
+        ...activeProperty,
+        roomBlocks: updatedBlocks,
+        walls: updatedWalls,
+        floors: updatedFloors
+      }
+    });
+
+    showToast('Deleted Room/Block!');
+  },
+
+  duplicateRoomBlock: (blockId) => {
+    const { activeProperty, createRoomBlock, showToast } = get();
+    if (!activeProperty) return;
+
+    const source = (activeProperty.roomBlocks || []).find(b => b.id === blockId);
+    if (!source) return;
+
+    const offset = 2.0;
+    const duplicated: Omit<RoomBlock, 'id'> = {
+      ...source,
+      start: [source.start[0] + offset, source.start[1], source.start[2] + offset],
+      end: [source.end[0] + offset, source.end[1], source.end[2] + offset]
+    };
+
+    createRoomBlock(duplicated);
+    showToast('Duplicated Block!');
+  },
+
+  updateRoomBlock: (blockId, updates) => {
+    const { activeProperty, pushUndoState } = get();
+    if (!activeProperty) return;
+
+    pushUndoState();
+
+    const existingBlocks = activeProperty.roomBlocks || [];
+    const targetBlockIndex = existingBlocks.findIndex(b => b.id === blockId);
+    if (targetBlockIndex === -1) return;
+
+    const updatedBlock: RoomBlock = { ...existingBlocks[targetBlockIndex], ...updates };
+    const updatedBlocks = [...existingBlocks];
+    updatedBlocks[targetBlockIndex] = updatedBlock;
+
+    const otherWalls = activeProperty.walls.filter(w => w.roomId !== blockId);
+    const otherFloors = activeProperty.floors.filter(f => f.roomId !== blockId);
+
+    const generated = generateRoomBlockElements(updatedBlock);
+
+    set({
+      activeProperty: {
+        ...activeProperty,
+        roomBlocks: updatedBlocks,
+        walls: [...otherWalls, ...generated.walls],
+        floors: [...otherFloors, ...generated.floors]
+      }
+    });
+  },
 
   setPlacementRotation: (rot) => set({ placementRotation: rot }),
   rotatePlacementYaw: (deltaDeg = 15) => {

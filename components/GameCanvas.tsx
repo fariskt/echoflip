@@ -9,6 +9,7 @@ import { Environment, PerspectiveCamera, OrbitControls, Grid, Sky } from '@react
 import { HouseRenderer } from '../game/components/HouseRenderer';
 import { ForestBackground } from '../game/components/ForestBackground';
 import { FirstPersonRenovationController } from '../game/components/FirstPersonRenovationController';
+import { RoomBlockCreationTool } from '../game/components/RoomBlockCreationTool';
 
 import { TERRAIN_PRESETS } from '../game/core/assetRegistry';
 import { useGameStore } from '../stores/gameStore';
@@ -28,6 +29,7 @@ function EchoFlipScene() {
   const [pointerNorm, setPointerNorm] = useState<THREE.Vector3 | null>(null);
   const [pointerUserData, setPointerUserData] = useState<Record<string, any> | null>(null);
   const appMode = useRenovationStore((state) => state.appMode);
+  const equippedTool = useRenovationStore((state) => state.equippedTool);
 
   return (
     <>
@@ -72,6 +74,9 @@ function EchoFlipScene() {
 
       {/* Outdoor Surrounding Environment (Grass, Road, Rocks, Horizon Mountains, Solar Lamps & Clouds) */}
       <ForestBackground />
+
+      {/* Interactive Room & Block Drag Creation Tool */}
+      {equippedTool === 'room_builder' && <RoomBlockCreationTool pointerPosition={pointerPos} />}
 
       {/* Main Property Renovation Base */}
       <HouseRenderer pointerPosition={pointerPos} pointerNormal={pointerNorm} pointerHitUserData={pointerUserData} />

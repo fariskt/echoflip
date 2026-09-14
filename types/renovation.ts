@@ -5,7 +5,31 @@ export type RenovationTool =
   | 'flooring'
   | 'hammer'
   | 'wall_builder'
+  | 'room_builder'
   | 'furniture';
+
+export type RoomBlockType =
+  | 'floor'
+  | 'wall'
+  | 'ceiling'
+  | 'empty_room'
+  | 'full_room'
+  | 'foundation';
+
+export interface RoomBlock {
+  id: string;
+  name?: string;
+  type: RoomBlockType;
+  start: [number, number, number];
+  end: [number, number, number];
+  height: number;
+  wallThickness: number;
+  wallPresetId?: string;
+  flooringMaterialId?: string;
+  hasCeiling?: boolean;
+  color?: string;
+  createdAt?: number;
+}
 
 export interface WallBlockPreset {
   id: string;
@@ -147,5 +171,6 @@ export interface RenovationProperty {
   dirtStains: DirtStain[];
   fixtures: FixtureObject[];
   furniture: FurnitureObject[];
+  roomBlocks?: RoomBlock[];
   spawnPoint: [number, number, number];
 }

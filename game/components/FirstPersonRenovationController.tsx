@@ -22,7 +22,7 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
     const domEl = gl.domElement;
     if (!domEl) return;
     const originalRequestPointerLock = domEl.requestPointerLock;
-    domEl.requestPointerLock = function (options?: PointerLockOptions) {
+    domEl.requestPointerLock = function (options?: PointerLockOptions): Promise<void> {
       try {
         const res = originalRequestPointerLock.call(domEl, options);
         if (res && typeof (res as any).catch === 'function') {
@@ -31,10 +31,12 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
               console.warn('Pointer Lock cooldown active; click canvas again to lock.');
             }
           });
+          return res;
         }
-        return res;
+        return Promise.resolve();
       } catch (err: any) {
         console.warn('Pointer Lock suppressed:', err);
+        return Promise.resolve();
       }
     };
     return () => {
@@ -362,37 +364,59 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
     };
   }, [isPaused, resetPlacementRotation, rollPlacementRoll, rotatePlacementYaw, setCatalogOpen, setContractMenuOpen, setEquippedTool, setPaintMenuOpen, setPaused, tiltPlacementPitch]);
 
-  // Frame tick loop: WASD locomotion & vertical elevation
+  // Frame tick loop: WASD locomotion, touch D-Pad & vertical elevation
   useFrame((_, delta) => {
-    if (!controlsRef.current || !controlsRef.current.isLocked) return;
+    const mobileMove = useRenovationStore.getState().mobileMoveState;
+    const isPointerLocked = controlsRef.current?.isLocked;
 
-    const speed = moveState.current.sprint ? 8.5 : 4.5;
+    // Allow mobile move if active or pointer lock is engaged
+    const isForward = moveState.current.forward || mobileMove.forward;
+    const isBackward = moveState.current.backward || mobileMove.backward;
+    const isLeft = moveState.current.left || mobileMove.left;
+    const isRight = moveState.current.right || mobileMove.right;
+    const isUp = moveState.current.up || mobileMove.up;
+    const isDown = moveState.current.down || mobileMove.down;
+
+    const speed = (moveState.current.sprint ? 8.5 : 4.5);
     const friction = 10.0;
 
     velocity.current.x -= velocity.current.x * friction * delta;
     velocity.current.z -= velocity.current.z * friction * delta;
 
     const direction = new THREE.Vector3();
-    const forward = Number(moveState.current.forward) - Number(moveState.current.backward);
-    const side = Number(moveState.current.right) - Number(moveState.current.left);
+    const forward = Number(isForward) - Number(isBackward);
+    const side = Number(isRight) - Number(isLeft);
 
     direction.set(side, 0, forward).normalize();
 
-    if (moveState.current.forward || moveState.current.backward) {
+    if (isForward || isBackward) {
       velocity.current.z -= direction.z * speed * delta * 12;
     }
-    if (moveState.current.left || moveState.current.right) {
+    if (isLeft || isRight) {
       velocity.current.x -= direction.x * speed * delta * 12;
     }
 
-    controlsRef.current.moveForward(-velocity.current.z * delta);
-    controlsRef.current.moveRight(-velocity.current.x * delta);
+    if (controlsRef.current) {
+      controlsRef.current.moveForward(-velocity.current.z * delta);
+      controlsRef.current.moveRight(-velocity.current.x * delta);
+    } else {
+      camera.translateZ(velocity.current.z * delta);
+      camera.translateX(-velocity.current.x * delta);
+    }
+
+    // Touch camera yaw rotation
+    if (mobileMove.turnLeft) {
+      camera.rotation.y += 1.5 * delta;
+    }
+    if (mobileMove.turnRight) {
+      camera.rotation.y -= 1.5 * delta;
+    }
 
     // Vertical Up / Down movement controls
-    if (moveState.current.up) {
+    if (isUp) {
       camera.position.y += speed * delta;
     }
-    if (moveState.current.down) {
+    if (isDown) {
       camera.position.y -= speed * delta;
     }
     camera.position.y = Math.max(0.5, Math.min(30.0, camera.position.y));
