@@ -35,8 +35,11 @@ import {
 } from '../stores/renovationStore';
 import type { RenovationTool, RoomBlockType } from '../types/renovation';
 import { MinecraftTouchControls } from '../game/components/MinecraftTouchControls';
+import { AssetDebugModal } from './AssetDebugModal';
+import { Ruler } from 'lucide-react';
 
 export const EchoFlipHUD: React.FC = () => {
+  const [isAssetDebugOpen, setIsAssetDebugOpen] = React.useState(false);
   const appMode = useRenovationStore((state) => state.appMode);
   const setAppMode = useRenovationStore((state) => state.setAppMode);
   const money = useRenovationStore((state) => state.money);
@@ -110,6 +113,7 @@ export const EchoFlipHUD: React.FC = () => {
   const [isMobilePanelCollapsed, setIsMobilePanelCollapsed] = React.useState<boolean>(false);
   const [isPortrait, setIsPortrait] = React.useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
+  const [selectedCatalogCategory, setSelectedCatalogCategory] = React.useState<string>('all');
 
   const handleEnterLandscapeFullscreen = async () => {
     try {
@@ -268,6 +272,16 @@ export const EchoFlipHUD: React.FC = () => {
           >
             <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
             <span className="hidden sm:inline font-medium text-slate-200">Fullscreen</span>
+          </button>
+
+          {/* 3D Asset Size Normalizer Inspector Button */}
+          <button
+            onClick={() => setIsAssetDebugOpen(true)}
+            className="flex items-center space-x-1.5 px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl border border-sky-700/60 bg-sky-950/60 hover:bg-sky-900/60 text-sky-400 backdrop-blur-md shadow-lg transition text-xs"
+            title="Open 3D Asset Size Normalizer Inspector"
+          >
+            <Ruler className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400 shrink-0" />
+            <span className="hidden sm:inline font-medium text-sky-200">3D Asset Inspector</span>
           </button>
 
           {/* Mode Switcher */}
@@ -606,11 +620,11 @@ export const EchoFlipHUD: React.FC = () => {
       {/* Furniture Catalog Modal */}
       {isCatalogOpen && (
         <div className="pointer-events-auto fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
             <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-800">
               <div className="flex items-center space-x-2">
                 <Armchair className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400 shrink-0" />
-                <h2 className="text-sm sm:text-xl font-bold text-white truncate">Furniture & Catalog</h2>
+                <h2 className="text-sm sm:text-xl font-bold text-white truncate">3D Furniture & Catalog</h2>
               </div>
               <button
                 onClick={() => setCatalogOpen(false)}
@@ -620,8 +634,38 @@ export const EchoFlipHUD: React.FC = () => {
               </button>
             </div>
 
+            {/* Category Filter Tabs */}
+            <div className="px-4 py-2 bg-slate-950/80 border-b border-slate-800 flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
+              {[
+                { id: 'all', label: 'All Items' },
+                { id: 'seating', label: 'Seating' },
+                { id: 'tables', label: 'Tables & Desks' },
+                { id: 'beds', label: 'Beds' },
+                { id: 'storage', label: 'Storage' },
+                { id: 'kitchen', label: 'Kitchen' },
+                { id: 'bathroom', label: 'Bathroom' },
+                { id: 'doors', label: 'Doors' },
+                { id: 'windows', label: 'Windows' },
+                { id: 'lighting', label: 'Lighting' },
+                { id: 'building', label: 'Building & Stairs' },
+                { id: 'decor', label: 'Decor' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedCatalogCategory(tab.id)}
+                  className={`text-[11px] sm:text-xs px-3 py-1.5 rounded-xl border font-medium whitespace-nowrap transition ${
+                    selectedCatalogCategory === tab.id
+                      ? 'bg-emerald-950 border-emerald-500 text-emerald-300 font-semibold shadow'
+                      : 'bg-slate-800/60 border-slate-700/80 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             <div className="p-3 sm:p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-4 overflow-y-auto">
-              {FURNITURE_CATALOG.map((item) => (
+              {FURNITURE_CATALOG.filter((item) => selectedCatalogCategory === 'all' || item.category === selectedCatalogCategory).map((item) => (
                 <button
                   key={item.id}
                   onClick={() => {
@@ -635,14 +679,24 @@ export const EchoFlipHUD: React.FC = () => {
                     }`}
                 >
                   <div>
-                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                      {item.category}
-                    </span>
-                    <h3 className="text-xs sm:text-sm font-semibold text-white mt-0.5">{item.name}</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                        {item.category}
+                      </span>
+                      {item.modelPath && (
+                        <span className="text-[8px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-700/60 px-1 py-0.5 rounded font-semibold">
+                          3D GLB
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-xs sm:text-sm font-semibold text-white mt-1">{item.name}</h3>
+                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                      {item.dimensions ? `${item.dimensions[0]}m × ${item.dimensions[1]}m × ${item.dimensions[2]}m` : ''}
+                    </p>
                   </div>
                   <div className="mt-2 sm:mt-4 flex items-center justify-between">
                     <span className="text-[9px] sm:text-[10px] bg-emerald-900/60 text-emerald-300 px-1.5 py-0.5 rounded-full font-bold">
-                      FREE
+                      ${item.price}
                     </span>
                     <span className="text-[9px] sm:text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded-full">
                       Select
@@ -748,6 +802,9 @@ export const EchoFlipHUD: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Developer 3D Asset Size Normalizer Inspector Modal */}
+      <AssetDebugModal isOpen={isAssetDebugOpen} onClose={() => setIsAssetDebugOpen(false)} />
     </div>
   );
 };

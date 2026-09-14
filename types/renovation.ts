@@ -113,28 +113,64 @@ export type PlacementSurface =
   | 'Tabletop'
   | 'SurfaceFlat';
 
+export type FurnitureCategory =
+  | 'building'
+  | 'seating'
+  | 'tables'
+  | 'beds'
+  | 'storage'
+  | 'lighting'
+  | 'appliances'
+  | 'kitchen'
+  | 'bathroom'
+  | 'doors'
+  | 'windows'
+  | 'decor';
+
+export interface AssetNormalizedMetadata {
+  id: string;
+  modelPath: string;
+  category: FurnitureCategory;
+  originalDimensions: { width: number; height: number; depth: number };
+  targetDimensions: { width: number; height: number; depth: number };
+  normalizedScale: number;
+  normalizedDimensions: { width: number; height: number; depth: number };
+  floorOffset: number;
+  minY: number;
+  isNormalized: boolean;
+}
+
 export interface FurnitureObject {
   id: string;
   catalogId: string;
   name: string;
-  category: 'building' | 'seating' | 'tables' | 'beds' | 'storage' | 'lighting' | 'appliances' | 'decor';
+  category: FurnitureCategory;
   meshName: string;
+  modelPath?: string;
   position: [number, number, number];
   rotation: [number, number, number];
   scale: [number, number, number];
   price: number;
   placementSurface?: PlacementSurface;
+  rotationOffset?: [number, number, number];
+  targetDimensions?: [number, number, number];
+  floorOffset?: number;
+  normalizedScale?: number;
 }
 
 export interface FurnitureCatalogItem {
   id: string;
   name: string;
-  category: 'building' | 'seating' | 'tables' | 'beds' | 'storage' | 'lighting' | 'appliances' | 'decor';
+  category: FurnitureCategory;
   meshName: string;
+  modelPath?: string;
   price: number;
   dimensions: [number, number, number];
   placementSurface?: PlacementSurface;
   icon?: string;
+  scaleOffset?: [number, number, number];
+  rotationOffset?: [number, number, number];
+  targetDimensions?: [number, number, number];
 }
 
 export interface ContractTask {

@@ -46,17 +46,50 @@ export const FLOORING_MATERIALS: FlooringMaterial[] = [
 ];
 
 export const FURNITURE_CATALOG: FurnitureCatalogItem[] = [
-  { id: 'cat_door_frame', name: 'Wooden Door Frame', category: 'building', meshName: 'Door', price: 140, dimensions: [1.0, 2.2, 0.25], placementSurface: 'WallMounted' },
-  { id: 'cat_window_frame', name: 'Glass Window Unit', category: 'building', meshName: 'Window', price: 110, dimensions: [1.2, 1.4, 0.2], placementSurface: 'WallMounted' },
-  { id: 'cat_support_pillar', name: 'Structural Column Pillar', category: 'building', meshName: 'Pillar', price: 75, dimensions: [0.4, 3.0, 0.4], placementSurface: 'FloorOnly' },
-  { id: 'cat_sofa_modern', name: 'Modern 3-Seater Sofa', category: 'seating', meshName: 'Sofa', price: 450, dimensions: [2.2, 0.9, 0.9], placementSurface: 'FloorOnly' },
-  { id: 'cat_armchair', name: 'Scandinavian Armchair', category: 'seating', meshName: 'Chair', price: 180, dimensions: [0.9, 0.9, 0.8], placementSurface: 'FloorOnly' },
-  { id: 'cat_coffee_table', name: 'Wood Coffee Table', category: 'tables', meshName: 'Table', price: 120, dimensions: [1.2, 0.45, 0.6], placementSurface: 'FloorOnly' },
-  { id: 'cat_dining_table', name: 'Oak Dining Table', category: 'tables', meshName: 'Table_Large', price: 320, dimensions: [1.8, 0.75, 0.9], placementSurface: 'FloorOnly' },
-  { id: 'cat_study_desk', name: 'Modern Writing Desk', category: 'tables', meshName: 'Desk', price: 210, dimensions: [1.4, 0.75, 0.6], placementSurface: 'FloorOnly' },
-  { id: 'cat_king_bed', name: 'Minimalist King Bed', category: 'beds', meshName: 'Bed', price: 650, dimensions: [2.0, 1.1, 2.1], placementSurface: 'FloorOnly' },
-  { id: 'cat_bookshelf', name: 'Tall Wooden Bookshelf', category: 'storage', meshName: 'Cabinet', price: 240, dimensions: [0.9, 1.9, 0.35], placementSurface: 'FloorOnly' },
-  { id: 'cat_floor_lamp', name: 'Arc Floor Lamp', category: 'lighting', meshName: 'Lamp', price: 95, dimensions: [0.4, 1.7, 0.4], placementSurface: 'FloorOnly' },
+  // Seating
+  { id: 'cat_sofa_modern', name: 'Modern 3-Seater Sofa', category: 'seating', meshName: '3-seater_sofa', modelPath: '/assets/furniture/3-seater_sofa.glb', price: 450, dimensions: [2.2, 0.9, 0.9], placementSurface: 'FloorOnly' },
+  { id: 'cat_armchair', name: 'Scandinavian Armchair', category: 'seating', meshName: 'armchair', modelPath: '/assets/furniture/armchair.glb', price: 180, dimensions: [0.9, 0.9, 0.8], placementSurface: 'FloorOnly' },
+  { id: 'cat_dining_chair', name: 'Modern Dining Chair', category: 'seating', meshName: 'dining_chair', modelPath: '/assets/furniture/dining_chair.glb', price: 90, dimensions: [0.6, 0.9, 0.6], placementSurface: 'FloorOnly' },
+
+  // Tables
+  { id: 'cat_coffee_table', name: 'Wood Coffee Table', category: 'tables', meshName: 'coffee_table', modelPath: '/assets/furniture/coffee_table.glb', price: 120, dimensions: [1.2, 0.45, 0.6], placementSurface: 'FloorOnly' },
+  { id: 'cat_dining_table', name: 'Oak Dining & Chair Set', category: 'tables', meshName: 'table_and_chair', modelPath: '/assets/furniture/table_and_chair.glb', price: 320, dimensions: [1.6, 0.8, 1.2], placementSurface: 'FloorOnly' },
+  { id: 'cat_study_desk', name: 'Mini Writing Desk', category: 'tables', meshName: 'mini_table', modelPath: '/assets/furniture/mini_table.glb', price: 150, dimensions: [0.6, 0.5, 0.6], placementSurface: 'FloorOnly' },
+
+  // Beds & Wardrobe
+  { id: 'cat_king_bed', name: 'Minimalist King Bed', category: 'beds', meshName: 'bed', modelPath: '/assets/furniture/bed.glb', price: 650, dimensions: [2.0, 1.1, 2.1], placementSurface: 'FloorOnly' },
+  { id: 'cat_bookshelf', name: 'Tall Double Wardrobe', category: 'storage', meshName: 'wardrobe', modelPath: '/assets/furniture/wardrobe.glb', price: 280, dimensions: [1.2, 2.0, 0.6], placementSurface: 'FloorOnly' },
+
+  // Kitchen
+  { id: 'cat_fridge', name: 'Stainless Steel Refrigerator', category: 'kitchen', meshName: 'fridge', modelPath: '/assets/fridge.glb', price: 550, dimensions: [0.9, 1.8, 0.8], placementSurface: 'FloorOnly' },
+  { id: 'cat_kitchen_cabinet', name: 'Modular Kitchen Cabinet', category: 'kitchen', meshName: 'kitchen_cabinet', modelPath: '/assets/furniture/kitchen_cabinet.glb', price: 340, dimensions: [1.0, 0.9, 0.6], placementSurface: 'FloorOnly' },
+  { id: 'cat_kitchen_sink', name: 'Kitchen Sink Unit', category: 'kitchen', meshName: 'kitchen_sink', modelPath: '/assets/furniture/kitchen_sink.glb', price: 290, dimensions: [1.2, 0.9, 0.6], placementSurface: 'FloorOnly' },
+
+  // Bathroom
+  { id: 'cat_bathroom_sink', name: 'Bathroom Vanity Sink', category: 'bathroom', meshName: 'bathroom_sink', modelPath: '/assets/bathroom_sink.glb', price: 220, dimensions: [0.8, 0.85, 0.5], placementSurface: 'FloorOnly' },
+  { id: 'cat_modern_shower', name: 'Glass Walk-In Shower Unit', category: 'bathroom', meshName: 'modern_shower', modelPath: '/assets/modern_shower.glb', price: 780, dimensions: [1.1, 2.1, 1.1], placementSurface: 'FloorOnly' },
+  { id: 'cat_toilet', name: 'Ceramic Toilet', category: 'bathroom', meshName: 'toilet', modelPath: '/assets/toilet.glb', price: 190, dimensions: [0.5, 0.8, 0.7], placementSurface: 'FloorOnly' },
+
+  // Doors & Windows
+  { id: 'cat_door_frame', name: 'Modern Wooden Door', category: 'doors', meshName: 'modern_door', modelPath: '/assets/furniture/modern_door.glb', price: 140, dimensions: [1.0, 2.2, 0.25], placementSurface: 'WallMounted' },
+  { id: 'cat_window_frame', name: 'Modular Glass Window', category: 'windows', meshName: 'modular_window_05', modelPath: '/assets/furniture/modular_window_05.glb', price: 130, dimensions: [1.2, 1.4, 0.2], placementSurface: 'WallMounted' },
+  { id: 'cat_window_standard', name: 'Standard Wall Window', category: 'windows', meshName: 'window', modelPath: '/assets/furniture/window.glb', price: 110, dimensions: [1.0, 1.2, 0.2], placementSurface: 'WallMounted' },
+  { id: 'cat_ceiling_window', name: 'Skylight Roof Window', category: 'windows', meshName: 'ceiling_window_and_frame', modelPath: '/assets/ceiling_window_and_frame.glb', price: 210, dimensions: [1.5, 0.3, 1.5], placementSurface: 'CeilingMounted' },
+
+  // Lighting
+  { id: 'cat_ceiling_light', name: 'Modern Ceiling Pendant Light', category: 'lighting', meshName: 'ceiling_light', modelPath: '/assets/ceiling_light.glb', price: 110, dimensions: [0.4, 0.6, 0.4], placementSurface: 'CeilingMounted' },
+  { id: 'cat_led_ceiling_light', name: 'LED Ceiling Panel Light', category: 'lighting', meshName: 'led_ceiling_light', modelPath: '/assets/led_ceiling_light.glb', price: 95, dimensions: [0.6, 0.1, 0.6], placementSurface: 'CeilingMounted' },
+  { id: 'cat_floor_lamp', name: 'Arc Floor Lamp', category: 'lighting', meshName: 'ceiling_light', modelPath: '/assets/ceiling_light.glb', price: 95, dimensions: [0.4, 1.7, 0.4], placementSurface: 'FloorOnly' },
+
+  // Building Structures & Stairs
+  { id: 'cat_support_pillar', name: 'Steep Wooden Staircase', category: 'building', meshName: 'steep_staircase', modelPath: '/assets/furniture/steep_staircase.glb', price: 320, dimensions: [1.2, 2.8, 2.5], placementSurface: 'FloorOnly' },
+  { id: 'cat_floating_floor', name: 'Floating Wood Floor Slab', category: 'building', meshName: 'floating_floor', modelPath: '/assets/floating_floor.glb', price: 85, dimensions: [2.0, 0.15, 2.0], placementSurface: 'FloorOnly' },
+  { id: 'cat_floor_white_tile', name: 'White Tile Floor Slab (2x2m)', category: 'building', meshName: 'floor_white_tile_2x2_meters', modelPath: '/assets/floor_white_tile_2x2_meters.glb', price: 75, dimensions: [2.0, 0.05, 2.0], placementSurface: 'FloorOnly' },
+  { id: 'cat_brick_wall', name: 'Red Brick Wall Block', category: 'building', meshName: 'brick_wall', modelPath: '/assets/brick_wall.glb', price: 50, dimensions: [1.0, 1.0, 1.0], placementSurface: 'FloorOnly' },
+  { id: 'cat_modular_wall_09', name: 'Modular Wall Block', category: 'building', meshName: 'modular_wall_09', modelPath: '/assets/modular_wall_09.glb', price: 45, dimensions: [1.0, 1.0, 1.0], placementSurface: 'FloorOnly' },
+  { id: 'cat_worn_concrete_wall', name: 'Concrete Wall Block', category: 'building', meshName: 'worn_concrete_wall', modelPath: '/assets/worn_concrete_wall.glb', price: 40, dimensions: [1.0, 1.0, 1.0], placementSurface: 'FloorOnly' },
+
+  // Decor
   { id: 'cat_potted_plant', name: 'Ficus Potted Plant', category: 'decor', meshName: 'Plant', price: 45, dimensions: [0.5, 1.2, 0.5], placementSurface: 'Tabletop' },
 ];
 
@@ -708,10 +741,12 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
       name: item.name,
       category: item.category,
       meshName: item.meshName,
+      modelPath: item.modelPath,
       position: snappedPos,
       rotation,
-      scale: [1, 1, 1],
-      price: item.price
+      scale: item.scaleOffset || [1, 1, 1],
+      price: item.price,
+      placementSurface: item.placementSurface
     };
 
     const updatedFurniture = [...activeProperty.furniture, newFurnitureObj];

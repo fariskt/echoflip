@@ -3,11 +3,20 @@ import * as THREE from 'three';
 import { ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import { useRenovationStore } from '../../stores/renovationStore';
 import { validatePlacement } from '../utils/placementValidation';
+import { GLTFModelRenderer } from './GLTFModelRenderer';
+import { PRELOADED_ASSETS } from '../core/assetRegistry';
 
 interface HouseRendererProps {
   pointerPosition?: THREE.Vector3 | null;
   pointerNormal?: THREE.Vector3 | null;
   pointerHitUserData?: Record<string, any> | null;
+}
+
+function resolveModelPath(item: { modelPath?: string; meshName?: string }): string {
+  if (item.modelPath) return item.modelPath;
+  const name = item.meshName || '';
+  const match = PRELOADED_ASSETS.find((a) => a.name === name || a.name.toLowerCase() === name.toLowerCase());
+  return match?.url || '';
 }
 
 export const HouseRenderer: React.FC<HouseRendererProps> = ({
@@ -335,7 +344,7 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
         </group>
       ))}
 
-      {/* 5. Render Placed Furniture */}
+      {/* 5. Render Placed Furniture with real 3D GLTF Models */}
       {activeProperty.furniture.map((item) => {
         const radRotation: [number, number, number] = [
           (item.rotation[0] * Math.PI) / 180,
@@ -343,76 +352,25 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
           (item.rotation[2] * Math.PI) / 180
         ];
         const isSelectedPlaced = selectedPlacedFurnitureId === item.id;
+        const modelUrl = resolveModelPath(item);
 
         return (
-          <group
+          <GLTFModelRenderer
             key={item.id}
-            userData={{ type: 'furniture', id: item.id, name: item.name, category: item.category, price: item.price }}
+            modelPath={modelUrl}
+            category={item.category}
+            assetId={item.catalogId || item.id}
             position={item.position}
             rotation={radRotation}
-            scale={item.scale}
+            scale={item.scale || [1, 1, 1]}
+            isSelected={isSelectedPlaced}
+            userData={{ type: 'furniture', id: item.id, name: item.name, category: item.category, price: item.price }}
             onClick={(e: ThreeEvent<MouseEvent>) => {
               e.stopPropagation();
               setSelectedPlacedFurnitureId(item.id);
               useRenovationStore.getState().showToast(`🔍 Selected ${item.name}! Use [R] Yaw, [T] Tilt, [G] Roll to rotate`);
             }}
-          >
-            {isSelectedPlaced && (
-              <mesh position={[0, 0.5, 0]}>
-                <boxGeometry args={[2.2, 1.2, 1.2]} />
-                <meshBasicMaterial color="#38bdf8" wireframe={true} />
-              </mesh>
-            )}
-
-            {item.meshName === 'Sofa' && (
-              <mesh userData={{ type: 'furniture', id: item.id, name: item.name }} castShadow receiveShadow position={[0, 0.45, 0]}>
-                <boxGeometry args={[2.0, 0.8, 0.9]} />
-                <meshStandardMaterial color={isSelectedPlaced ? "#38bdf8" : "#2563eb"} roughness={0.6} />
-              </mesh>
-            )}
-
-            {item.meshName === 'Chair' && (
-              <mesh userData={{ type: 'furniture', id: item.id, name: item.name }} castShadow receiveShadow position={[0, 0.4, 0]}>
-                <boxGeometry args={[0.8, 0.8, 0.8]} />
-                <meshStandardMaterial color={isSelectedPlaced ? "#38bdf8" : "#0284c7"} roughness={0.7} />
-              </mesh>
-            )}
-
-            {(item.meshName === 'Table' || item.meshName === 'Table_Large' || item.meshName === 'Desk') && (
-              <mesh userData={{ type: 'furniture', id: item.id, name: item.name }} castShadow receiveShadow position={[0, 0.37, 0]}>
-                <boxGeometry args={[1.4, 0.75, 0.8]} />
-                <meshStandardMaterial color={isSelectedPlaced ? "#38bdf8" : "#d97706"} roughness={0.5} />
-              </mesh>
-            )}
-
-            {item.meshName === 'Bed' && (
-              <mesh userData={{ type: 'furniture', id: item.id, name: item.name }} castShadow receiveShadow position={[0, 0.3, 0]}>
-                <boxGeometry args={[2.0, 0.6, 2.1]} />
-                <meshStandardMaterial color={isSelectedPlaced ? "#38bdf8" : "#475569"} roughness={0.8} />
-              </mesh>
-            )}
-
-            {item.meshName === 'Cabinet' && (
-              <mesh userData={{ type: 'furniture', id: item.id, name: item.name }} castShadow receiveShadow position={[0, 0.95, 0]}>
-                <boxGeometry args={[0.9, 1.9, 0.35]} />
-                <meshStandardMaterial color="#78350f" roughness={0.6} />
-              </mesh>
-            )}
-
-            {item.meshName === 'Lamp' && (
-              <mesh userData={{ type: 'furniture', id: item.id, name: item.name }} castShadow receiveShadow position={[0, 0.85, 0]}>
-                <cylinderGeometry args={[0.1, 0.2, 1.7, 12]} />
-                <meshStandardMaterial color="#f59e0b" roughness={0.3} metalness={0.8} />
-              </mesh>
-            )}
-
-            {!['Sofa', 'Chair', 'Table', 'Table_Large', 'Desk', 'Bed', 'Cabinet', 'Lamp'].includes(item.meshName) && (
-              <mesh userData={{ type: 'furniture', id: item.id, name: item.name }} castShadow receiveShadow position={[0, 0.5, 0]}>
-                <boxGeometry args={[1, 1, 1]} />
-                <meshStandardMaterial color="#10b981" roughness={0.5} />
-              </mesh>
-            )}
-          </group>
+          />
         );
       })}
 
@@ -426,10 +384,13 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
             (placementRotation[2] * Math.PI) / 180
           ]}
         >
-          <mesh position={[0, (selectedFurniture.dimensions[1] || 1) / 2, 0]}>
-            <boxGeometry args={selectedFurniture.dimensions || [1, 1, 1]} />
-            <meshStandardMaterial ref={furnitureGhostMatRef} color="#22c55e" transparent opacity={0.65} wireframe={false} />
-          </mesh>
+          <GLTFModelRenderer
+            modelPath={resolveModelPath(selectedFurniture)}
+            category={selectedFurniture.category}
+            assetId={selectedFurniture.id}
+            isGhost={true}
+            ghostColor={isValidPlacementRef.current ? '#22c55e' : '#ef4444'}
+          />
         </group>
       )}
 
@@ -452,7 +413,6 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
       {/* 7. Dynamic 3D Dot Target Pointer Marker */}
       {pointerPosition && (
         <group ref={targetPointerRef}>
-          {/* Target Ring Pointer Indicator */}
           <mesh rotation={pointerNormal && Math.abs(pointerNormal.y) > 0.5 ? [-Math.PI / 2, 0, 0] : [0, 0, 0]}>
             <ringGeometry args={[0.08, 0.16, 24]} />
             <meshBasicMaterial
@@ -467,7 +427,6 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
             />
           </mesh>
 
-          {/* Center Target Dot */}
           <mesh>
             <sphereGeometry args={[0.04, 12, 12]} />
             <meshBasicMaterial
@@ -479,7 +438,6 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
             />
           </mesh>
 
-          {/* Grid Cell Target Box Overlay when targeting Empty Grid Floor */}
           {(equippedTool === 'furniture' || equippedTool === 'wall_builder') && (
             <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
               <planeGeometry args={[gridSnapSize, gridSnapSize]} />

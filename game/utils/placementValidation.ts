@@ -132,7 +132,7 @@ export function validatePlacement({
 
   if (requiredSurface === 'FloorOnly' || requiredSurface === 'Tabletop' || requiredSurface === 'SurfaceFlat') {
     if (isUpwardNormal) {
-      pos[1] = hitPoint.y + dims[1] / 2;
+      pos[1] = hitPoint.y;
     }
   } else if (requiredSurface === 'WallMounted') {
     // Offset slightly out from wall along normal
