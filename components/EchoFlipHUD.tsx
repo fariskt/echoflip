@@ -532,7 +532,7 @@ export const EchoFlipHUD: React.FC = () => {
 
       {/* Responsive Bottom Toolbelt Dock */}
       {appMode === 'renovation' && (
-        <footer className="pointer-events-auto flex justify-center w-full">
+        <footer className="pointer-events-auto relative z-50 flex justify-center w-full">
           <div className="flex items-center space-x-1.5 sm:space-x-2 bg-slate-900/95 backdrop-blur-md p-1.5 sm:p-2 rounded-2xl sm:rounded-3xl border border-slate-800 shadow-2xl max-w-[96vw] overflow-x-auto no-scrollbar touch-pan-x flex-nowrap">
             {tools.map((t) => {
               const isEquipped = equippedTool === t.id;
@@ -540,6 +540,10 @@ export const EchoFlipHUD: React.FC = () => {
                 <button
                   key={t.id}
                   onClick={() => handleToolClick(t.id)}
+                  onTouchEnd={(e) => {
+                    e.stopPropagation();
+                    handleToolClick(t.id);
+                  }}
                   className={`relative flex flex-col items-center justify-center min-w-[44px] w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl font-medium transition duration-200 shrink-0 ${isEquipped
                       ? 'bg-gradient-to-t from-emerald-600 to-teal-500 text-white shadow-lg scale-105 border border-emerald-400'
                       : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 hover:text-slate-200'

@@ -116,7 +116,10 @@ export const MinecraftTouchControls: React.FC = () => {
 
   // --- RIGHT SIDE TOUCH LOOK DRAG HANDLERS (Minecraft PE 360° Pan & Tilt) ---
   const handleLookTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    e.stopPropagation();
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === 'BUTTON' || target.closest('button') || target.closest('footer') || target.closest('header'))) {
+      return;
+    }
     if (lookTouchIdRef.current !== null) return;
 
     const touch = e.changedTouches[0];
@@ -127,7 +130,6 @@ export const MinecraftTouchControls: React.FC = () => {
   };
 
   const handleLookTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    e.stopPropagation();
     if (lookTouchIdRef.current === null) return;
 
     for (let i = 0; i < e.changedTouches.length; i++) {
@@ -144,7 +146,6 @@ export const MinecraftTouchControls: React.FC = () => {
   };
 
   const handleLookTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    e.stopPropagation();
     if (lookTouchIdRef.current === null) return;
 
     for (let i = 0; i < e.changedTouches.length; i++) {
@@ -156,14 +157,14 @@ export const MinecraftTouchControls: React.FC = () => {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-30 select-none overflow-hidden touch-none">
-      {/* --- RIGHT SIDE TOUCH LOOK ZONE (360° Camera Pan & Tilt) --- */}
+    <div className="pointer-events-none fixed inset-0 z-20 select-none overflow-hidden touch-none">
+      {/* --- RIGHT SIDE TOUCH LOOK ZONE (360° Camera Pan & Tilt in Viewport Area) --- */}
       <div
         onTouchStart={handleLookTouchStart}
         onTouchMove={handleLookTouchMove}
         onTouchEnd={handleLookTouchEnd}
         onTouchCancel={handleLookTouchEnd}
-        className="pointer-events-auto absolute right-0 top-0 w-2/3 h-full touch-none z-30 opacity-0"
+        className="pointer-events-auto absolute right-0 top-16 bottom-24 w-2/3 touch-none z-10 opacity-0"
       />
 
       {/* --- MINECRAFT LEFT SIDE D-PAD / JOYSTICK ZONE --- */}
