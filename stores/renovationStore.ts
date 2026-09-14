@@ -95,8 +95,14 @@ export interface RenovationState {
     down: boolean;
     turnLeft: boolean;
     turnRight: boolean;
+    sprint: boolean;
+    analogX: number;
+    analogY: number;
   };
-  setMobileMove: (dir: 'forward' | 'backward' | 'left' | 'right' | 'up' | 'down' | 'turnLeft' | 'turnRight', active: boolean) => void;
+  setMobileMove: (dir: 'forward' | 'backward' | 'left' | 'right' | 'up' | 'down' | 'turnLeft' | 'turnRight' | 'sprint', active: boolean) => void;
+  setMobileAnalog: (x: number, y: number) => void;
+  actionSignal: number;
+  triggerMobileAction: () => void;
 
   activeProperty: RenovationProperty | null;
   activeContract: RenovationContract | null;
@@ -214,10 +220,20 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
     up: false,
     down: false,
     turnLeft: false,
-    turnRight: false
+    turnRight: false,
+    sprint: false,
+    analogX: 0,
+    analogY: 0
   },
+  actionSignal: 0,
   setMobileMove: (dir, active) => set((state) => ({
     mobileMoveState: { ...state.mobileMoveState, [dir]: active }
+  })),
+  setMobileAnalog: (x, y) => set((state) => ({
+    mobileMoveState: { ...state.mobileMoveState, analogX: x, analogY: y }
+  })),
+  triggerMobileAction: () => set((state) => ({
+    actionSignal: state.actionSignal + 1
   })),
 
   setActiveRoomBlockType: (type) => set({ activeRoomBlockType: type }),

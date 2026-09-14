@@ -34,6 +34,7 @@ import {
   WALL_BLOCK_PRESETS
 } from '../stores/renovationStore';
 import type { RenovationTool, RoomBlockType } from '../types/renovation';
+import { MinecraftTouchControls } from '../game/components/MinecraftTouchControls';
 
 export const EchoFlipHUD: React.FC = () => {
   const appMode = useRenovationStore((state) => state.appMode);
@@ -437,72 +438,8 @@ export const EchoFlipHUD: React.FC = () => {
         </div>
       )}
 
-      {/* Mobile Touch On-Screen D-Pad / Controls */}
-      <div className="pointer-events-auto fixed bottom-24 left-3 z-40 flex flex-col items-center gap-1 bg-slate-950/90 p-2 rounded-2xl border border-slate-800/90 backdrop-blur-md md:hidden select-none shadow-2xl">
-        <span className="text-[9px] font-bold text-emerald-400">MOVE</span>
-        <div className="flex items-center gap-1">
-          <div className="w-8 h-8" />
-          <button
-            onTouchStart={() => setMobileMove('forward', true)}
-            onTouchEnd={() => setMobileMove('forward', false)}
-            onMouseDown={() => setMobileMove('forward', true)}
-            onMouseUp={() => setMobileMove('forward', false)}
-            className="w-9 h-9 rounded-xl bg-slate-800 active:bg-emerald-600 text-white font-bold flex items-center justify-center border border-slate-700 shadow text-xs"
-          >
-            ▲
-          </button>
-          <div className="w-8 h-8" />
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onTouchStart={() => setMobileMove('left', true)}
-            onTouchEnd={() => setMobileMove('left', false)}
-            onMouseDown={() => setMobileMove('left', true)}
-            onMouseUp={() => setMobileMove('left', false)}
-            className="w-9 h-9 rounded-xl bg-slate-800 active:bg-emerald-600 text-white font-bold flex items-center justify-center border border-slate-700 shadow text-xs"
-          >
-            ◄
-          </button>
-          <button
-            onTouchStart={() => setMobileMove('backward', true)}
-            onTouchEnd={() => setMobileMove('backward', false)}
-            onMouseDown={() => setMobileMove('backward', true)}
-            onMouseUp={() => setMobileMove('backward', false)}
-            className="w-9 h-9 rounded-xl bg-slate-800 active:bg-emerald-600 text-white font-bold flex items-center justify-center border border-slate-700 shadow text-xs"
-          >
-            ▼
-          </button>
-          <button
-            onTouchStart={() => setMobileMove('right', true)}
-            onTouchEnd={() => setMobileMove('right', false)}
-            onMouseDown={() => setMobileMove('right', true)}
-            onMouseUp={() => setMobileMove('right', false)}
-            className="w-9 h-9 rounded-xl bg-slate-800 active:bg-emerald-600 text-white font-bold flex items-center justify-center border border-slate-700 shadow text-xs"
-          >
-            ►
-          </button>
-        </div>
-        <div className="flex items-center gap-1 mt-0.5">
-          <button
-            onTouchStart={() => setMobileMove('turnLeft', true)}
-            onTouchEnd={() => setMobileMove('turnLeft', false)}
-            onMouseDown={() => setMobileMove('turnLeft', true)}
-            onMouseUp={() => setMobileMove('turnLeft', false)}
-            className="px-1.5 py-0.5 rounded-lg bg-slate-800 active:bg-slate-700 text-cyan-300 text-[9px] font-bold border border-slate-700"
-          >
-            ↺ LOOK
-          </button>
-          <button
-            onTouchStart={() => setMobileMove('turnRight', true)}
-            onTouchEnd={() => setMobileMove('turnRight', false)}
-            onMouseDown={() => setMobileMove('turnRight', true)}
-            onMouseUp={() => setMobileMove('turnRight', false)}
-            className="px-1.5 py-0.5 rounded-lg bg-slate-800 active:bg-slate-700 text-cyan-300 text-[9px] font-bold border border-slate-700"
-          >
-            LOOK ↻
-          </button>
-        </div>
-      </div>
+      {/* Minecraft Mobile Touch Controls (Left Joystick / D-Pad, Right Touch Look, Action, Jump, Sneak & Sprint) */}
+      <MinecraftTouchControls />
 
       {/* Center Reticle & Action Prompt */}
       {appMode === 'renovation' && (

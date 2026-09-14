@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { PointerLockControls } from '@react-three/drei';
@@ -69,6 +69,7 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
   const demolishWall = useRenovationStore((state) => state.demolishWall);
   const buildWall = useRenovationStore((state) => state.buildWall);
   const placeFurniture = useRenovationStore((state) => state.placeFurniture);
+  const actionSignal = useRenovationStore((state) => state.actionSignal);
 
   const [, setIsLocked] = useState(false);
   const spawnedPropertyIdRef = useRef<string | null>(null);
@@ -99,142 +100,223 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
     }
   }, [activeProperty, camera]);
 
-  // Handle MOUSE CLICK for Renovation tool actions
+  // Reusable Tool Action execution (triggered on PC mouse click or Mobile Action button tap)
+  const executeToolAction = useCallback(() => {
+    raycaster.current.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const intersects = raycaster.current.intersectObjects(scene.children, true);
+
+    if (intersects.length > 0 && intersects[0].distance < 8.0) {
+      const hit = intersects[0];
+      let obj: THREE.Object3D | null = hit.object;
+
+      while (obj && !obj.userData?.type && obj.parent && obj.parent !== scene) {
+        obj = obj.parent;
+      }
+
+      const userData = obj?.userData || {};
+      const hitNormal = hit.face?.normal ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0);
+
+      if (equippedTool === 'inspect') {
+        if (userData.type === 'furniture' && userData.id) {
+          useRenovationStore.getState().setSelectedPlacedFurnitureId(userData.id);
+          useRenovationStore.getState().showToast(`🔍 Selected ${userData.name || 'Placed Object'}! [R] Yaw, [T] Tilt, [G] Roll`);
+        } else if (userData.type === 'wall' && userData.id) {
+          useRenovationStore.getState().setSelectedPlacedWallId(userData.id);
+          useRenovationStore.getState().showToast(`🔍 Selected Wall Block! [R] Yaw, [T] Tilt, [G] Roll`);
+        } else if (userData.type === 'fixture') {
+          useRenovationStore.getState().showToast(`🔍 Inspected Fixture: ${userData.name || 'Fixture'}`);
+        }
+        return;
+      }
+
+      if (userData.type === 'stain') {
+        if (equippedTool === 'sponge') {
+          scrubDirtStain(userData.id);
+        }
+      } else if (userData.type === 'wall') {
+        if (equippedTool === 'paint_roller') {
+          paintWallSegment(userData.id);
+        } else if (equippedTool === 'hammer') {
+          demolishWall(userData.id);
+        } else if (equippedTool === 'furniture' && selectedFurniture) {
+          const valRes = validatePlacement({
+            item: selectedFurniture,
+            hitPoint: hit.point,
+            hitNormal,
+            hitUserData: userData,
+            cameraPosition: camera.position,
+            placementRotation,
+            property: activeProperty
+          });
+          if (!valRes.valid) {
+            useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
+            return;
+          }
+          placeFurniture(selectedFurniture, valRes.alignedPosition, placementRotation);
+        }
+      } else if (userData.type === 'floor') {
+        if (equippedTool === 'flooring') {
+          changeFlooring(userData.id);
+        } else if (equippedTool === 'wall_builder') {
+          const valRes = validatePlacement({
+            item: selectedWallBlock,
+            hitPoint: hit.point,
+            hitNormal,
+            hitUserData: userData,
+            cameraPosition: camera.position,
+            placementRotation,
+            property: activeProperty
+          });
+          if (!valRes.valid) {
+            useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
+            return;
+          }
+          buildWall(valRes.alignedPosition);
+        } else if (equippedTool === 'furniture' && selectedFurniture) {
+          const valRes = validatePlacement({
+            item: selectedFurniture,
+            hitPoint: hit.point,
+            hitNormal,
+            hitUserData: userData,
+            cameraPosition: camera.position,
+            placementRotation,
+            property: activeProperty
+          });
+          if (!valRes.valid) {
+            useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
+            return;
+          }
+          placeFurniture(selectedFurniture, valRes.alignedPosition, placementRotation);
+        }
+      } else if (userData.type === 'fixture') {
+        if (userData.isBroken) {
+          repairFixture(userData.id);
+        }
+      } else {
+        if (equippedTool === 'wall_builder' && hit.point) {
+          const valRes = validatePlacement({
+            item: selectedWallBlock,
+            hitPoint: hit.point,
+            hitNormal,
+            hitUserData: userData,
+            cameraPosition: camera.position,
+            placementRotation,
+            property: activeProperty
+          });
+          if (!valRes.valid) {
+            useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
+            return;
+          }
+          buildWall(valRes.alignedPosition);
+        } else if (equippedTool === 'furniture' && selectedFurniture && hit.point) {
+          const valRes = validatePlacement({
+            item: selectedFurniture,
+            hitPoint: hit.point,
+            hitNormal,
+            hitUserData: userData,
+            cameraPosition: camera.position,
+            placementRotation,
+            property: activeProperty
+          });
+          if (!valRes.valid) {
+            useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
+            return;
+          }
+          placeFurniture(selectedFurniture, valRes.alignedPosition, placementRotation);
+        }
+      }
+    }
+  }, [activeProperty, buildWall, camera, changeFlooring, demolishWall, equippedTool, paintWallSegment, placeFurniture, placementRotation, repairFixture, scene, scrubDirtStain, selectedFurniture, selectedWallBlock]);
+
+  // Handle MOUSE CLICK for Renovation tool actions on PC
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
       if (e.button !== 0 || !controlsRef.current || !controlsRef.current.isLocked) return;
-
-      raycaster.current.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const intersects = raycaster.current.intersectObjects(scene.children, true);
-
-      if (intersects.length > 0 && intersects[0].distance < 8.0) {
-        const hit = intersects[0];
-        let obj: THREE.Object3D | null = hit.object;
-
-        while (obj && !obj.userData?.type && obj.parent && obj.parent !== scene) {
-          obj = obj.parent;
-        }
-
-        const userData = obj?.userData || {};
-        const hitNormal = hit.face?.normal ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0);
-
-        if (equippedTool === 'inspect') {
-          if (userData.type === 'furniture' && userData.id) {
-            useRenovationStore.getState().setSelectedPlacedFurnitureId(userData.id);
-            useRenovationStore.getState().showToast(`🔍 Selected ${userData.name || 'Placed Object'}! [R] Yaw, [T] Tilt, [G] Roll`);
-          } else if (userData.type === 'wall' && userData.id) {
-            useRenovationStore.getState().setSelectedPlacedWallId(userData.id);
-            useRenovationStore.getState().showToast(`🔍 Selected Wall Block! [R] Yaw, [T] Tilt, [G] Roll`);
-          } else if (userData.type === 'fixture') {
-            useRenovationStore.getState().showToast(`🔍 Inspected Fixture: ${userData.name || 'Fixture'}`);
-          }
-          return;
-        }
-
-        if (userData.type === 'stain') {
-          if (equippedTool === 'sponge') {
-            scrubDirtStain(userData.id);
-          }
-        } else if (userData.type === 'wall') {
-          if (equippedTool === 'paint_roller') {
-            paintWallSegment(userData.id);
-          } else if (equippedTool === 'hammer') {
-            demolishWall(userData.id);
-          } else if (equippedTool === 'furniture' && selectedFurniture) {
-            const valRes = validatePlacement({
-              item: selectedFurniture,
-              hitPoint: hit.point,
-              hitNormal,
-              hitUserData: userData,
-              cameraPosition: camera.position,
-              placementRotation,
-              property: activeProperty
-            });
-            if (!valRes.valid) {
-              useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
-              return;
-            }
-            placeFurniture(selectedFurniture, valRes.alignedPosition, placementRotation);
-          }
-        } else if (userData.type === 'floor') {
-          if (equippedTool === 'flooring') {
-            changeFlooring(userData.id);
-          } else if (equippedTool === 'wall_builder') {
-            const valRes = validatePlacement({
-              item: selectedWallBlock,
-              hitPoint: hit.point,
-              hitNormal,
-              hitUserData: userData,
-              cameraPosition: camera.position,
-              placementRotation,
-              property: activeProperty
-            });
-            if (!valRes.valid) {
-              useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
-              return;
-            }
-            buildWall(valRes.alignedPosition);
-          } else if (equippedTool === 'furniture' && selectedFurniture) {
-            const valRes = validatePlacement({
-              item: selectedFurniture,
-              hitPoint: hit.point,
-              hitNormal,
-              hitUserData: userData,
-              cameraPosition: camera.position,
-              placementRotation,
-              property: activeProperty
-            });
-            if (!valRes.valid) {
-              useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
-              return;
-            }
-            placeFurniture(selectedFurniture, valRes.alignedPosition, placementRotation);
-          }
-        } else if (userData.type === 'fixture') {
-          if (userData.isBroken) {
-            repairFixture(userData.id);
-          }
-        } else {
-          if (equippedTool === 'wall_builder' && hit.point) {
-            const valRes = validatePlacement({
-              item: selectedWallBlock,
-              hitPoint: hit.point,
-              hitNormal,
-              hitUserData: userData,
-              cameraPosition: camera.position,
-              placementRotation,
-              property: activeProperty
-            });
-            if (!valRes.valid) {
-              useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
-              return;
-            }
-            buildWall(valRes.alignedPosition);
-          } else if (equippedTool === 'furniture' && selectedFurniture && hit.point) {
-            const valRes = validatePlacement({
-              item: selectedFurniture,
-              hitPoint: hit.point,
-              hitNormal,
-              hitUserData: userData,
-              cameraPosition: camera.position,
-              placementRotation,
-              property: activeProperty
-            });
-            if (!valRes.valid) {
-              useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
-              return;
-            }
-            placeFurniture(selectedFurniture, valRes.alignedPosition, placementRotation);
-          }
-        }
-      }
+      executeToolAction();
     };
 
     window.addEventListener('mousedown', handleMouseDown);
     return () => window.removeEventListener('mousedown', handleMouseDown);
-  }, [buildWall, camera, changeFlooring, demolishWall, equippedTool, paintWallSegment, placeFurniture, placementRotation, repairFixture, scene, scrubDirtStain, selectedFurniture]);
+  }, [executeToolAction]);
 
-  // Keyboard controls listener
+  // Handle Mobile Action Signal Triggering (Minecraft PE Action button)
+  const prevActionSignalRef = useRef(actionSignal);
+  useEffect(() => {
+    if (actionSignal !== prevActionSignalRef.current) {
+      prevActionSignalRef.current = actionSignal;
+      executeToolAction();
+    }
+  }, [actionSignal, executeToolAction]);
+
+  // Mobile Touch Drag Camera Look Handler (Minecraft PE touch camera pitch/yaw rotation)
+  useEffect(() => {
+    let lookTouchId: number | null = null;
+    let lastX = 0;
+    let lastY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (controlsRef.current?.isLocked) return;
+
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.clientX > window.innerWidth * 0.35 && lookTouchId === null) {
+          const target = touch.target as HTMLElement | null;
+          if (target && (target.tagName === 'BUTTON' || target.closest('button') || target.closest('.pointer-events-auto'))) {
+            continue;
+          }
+          lookTouchId = touch.identifier;
+          lastX = touch.clientX;
+          lastY = touch.clientY;
+          break;
+        }
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (lookTouchId === null || controlsRef.current?.isLocked) return;
+
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === lookTouchId) {
+          const deltaX = touch.clientX - lastX;
+          const deltaY = touch.clientY - lastY;
+          lastX = touch.clientX;
+          lastY = touch.clientY;
+
+          camera.rotation.order = 'YXZ';
+          const sensitivity = 0.0035;
+          camera.rotation.y -= deltaX * sensitivity;
+          camera.rotation.x -= deltaY * sensitivity;
+          camera.rotation.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, camera.rotation.x));
+          break;
+        }
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (lookTouchId === null) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === lookTouchId) {
+          lookTouchId = null;
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [camera]);
+
+  // Keyboard controls listener (PC WASD controls - UNTOUCHED)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
@@ -364,36 +446,41 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
     };
   }, [isPaused, resetPlacementRotation, rollPlacementRoll, rotatePlacementYaw, setCatalogOpen, setContractMenuOpen, setEquippedTool, setPaintMenuOpen, setPaused, tiltPlacementPitch]);
 
-  // Frame tick loop: WASD locomotion, touch D-Pad & vertical elevation
+  // Frame tick loop: WASD locomotion + Touch D-Pad / Analog Joystick & vertical elevation
   useFrame((_, delta) => {
     const mobileMove = useRenovationStore.getState().mobileMoveState;
-    const isPointerLocked = controlsRef.current?.isLocked;
 
-    // Allow mobile move if active or pointer lock is engaged
-    const isForward = moveState.current.forward || mobileMove.forward;
-    const isBackward = moveState.current.backward || mobileMove.backward;
-    const isLeft = moveState.current.left || mobileMove.left;
-    const isRight = moveState.current.right || mobileMove.right;
     const isUp = moveState.current.up || mobileMove.up;
     const isDown = moveState.current.down || mobileMove.down;
+    const isSprint = moveState.current.sprint || mobileMove.sprint;
 
-    const speed = (moveState.current.sprint ? 8.5 : 4.5);
+    const speed = isSprint ? 8.5 : 4.5;
     const friction = 10.0;
 
     velocity.current.x -= velocity.current.x * friction * delta;
     velocity.current.z -= velocity.current.z * friction * delta;
 
-    const direction = new THREE.Vector3();
-    const forward = Number(isForward) - Number(isBackward);
-    const side = Number(isRight) - Number(isLeft);
+    let forwardInput = Number(moveState.current.forward) - Number(moveState.current.backward);
+    let sideInput = Number(moveState.current.right) - Number(moveState.current.left);
 
-    direction.set(side, 0, forward).normalize();
+    if (mobileMove.forward) forwardInput += 1;
+    if (mobileMove.backward) forwardInput -= 1;
+    if (mobileMove.right) sideInput += 1;
+    if (mobileMove.left) sideInput -= 1;
 
-    if (isForward || isBackward) {
-      velocity.current.z -= direction.z * speed * delta * 12;
-    }
-    if (isLeft || isRight) {
-      velocity.current.x -= direction.x * speed * delta * 12;
+    if (mobileMove.analogY !== 0) forwardInput = mobileMove.analogY;
+    if (mobileMove.analogX !== 0) sideInput = mobileMove.analogX;
+
+    forwardInput = Math.max(-1, Math.min(1, forwardInput));
+    sideInput = Math.max(-1, Math.min(1, sideInput));
+
+    if (forwardInput !== 0 || sideInput !== 0) {
+      const inputVec = new THREE.Vector3(sideInput, 0, forwardInput);
+      const mag = Math.min(1, inputVec.length());
+      inputVec.normalize();
+
+      velocity.current.z -= inputVec.z * speed * delta * 12 * mag;
+      velocity.current.x -= inputVec.x * speed * delta * 12 * mag;
     }
 
     if (controlsRef.current) {
@@ -404,7 +491,7 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
       camera.translateX(-velocity.current.x * delta);
     }
 
-    // Touch camera yaw rotation
+    // Discrete Touch camera yaw rotation fallbacks
     if (mobileMove.turnLeft) {
       camera.rotation.y += 1.5 * delta;
     }
