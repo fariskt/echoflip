@@ -196,6 +196,18 @@ export const EchoFlipHUD: React.FC = () => {
     }
   };
 
+  const cycleTool = (direction: 'next' | 'prev') => {
+    const currentIndex = tools.findIndex((t) => t.id === equippedTool);
+    let nextIndex = 0;
+    if (direction === 'next') {
+      nextIndex = (currentIndex + 1) % tools.length;
+    } else {
+      nextIndex = (currentIndex - 1 + tools.length) % tools.length;
+    }
+    const targetTool = tools[nextIndex];
+    handleToolClick(targetTool.id);
+  };
+
   const getToolActionPrompt = () => {
     switch (equippedTool) {
       case 'inspect':
@@ -451,9 +463,9 @@ export const EchoFlipHUD: React.FC = () => {
         </div>
       )}
 
-      {/* 3D Object Rotation & Grid Snap Bar */}
+      {/* 3D Object Rotation & Grid Snap Bar (Top-Center under header on mobile, bottom on desktop) */}
       {(equippedTool === 'furniture' || equippedTool === 'wall_builder' || selectedFurniture || selectedPlacedFurnitureId || selectedPlacedWallId) && (
-        <div className="pointer-events-auto absolute bottom-20 sm:bottom-24 left-1/2 transform -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-2 bg-slate-900/95 border border-slate-700/80 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl shadow-2xl backdrop-blur-md max-w-[94vw] overflow-x-auto no-scrollbar">
+        <div className="pointer-events-auto absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-2 bg-slate-900/95 border border-slate-700/80 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl shadow-2xl backdrop-blur-md max-w-[94vw] overflow-x-auto no-scrollbar z-40">
           <button
             onClick={() => toggleGridSnap()}
             className={`text-[11px] sm:text-xs px-2.5 py-1.5 rounded-xl border font-semibold transition flex items-center gap-1 shrink-0 ${gridSnapEnabled
@@ -524,15 +536,47 @@ export const EchoFlipHUD: React.FC = () => {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="absolute top-16 sm:top-24 left-1/2 transform -translate-x-1/2 pointer-events-auto bg-emerald-600 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-2xl font-medium text-xs sm:text-sm flex items-center space-x-2 animate-bounce max-w-[90vw] truncate">
+        <div className="absolute top-16 sm:top-24 left-1/2 transform -translate-x-1/2 pointer-events-auto bg-emerald-600 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-2xl font-medium text-xs sm:text-sm flex items-center space-x-2 animate-bounce max-w-[90vw] truncate z-50">
           <Sparkles className="w-4 h-4 text-yellow-300 shrink-0" />
           <span className="truncate">{toastMessage}</span>
         </div>
       )}
 
-      {/* Responsive Bottom Toolbelt Dock */}
+      {/* Mobile-Friendly Compact Tool Selector Pill (Bottom-Center on mobile) */}
       {appMode === 'renovation' && (
-        <footer className="pointer-events-auto relative z-50 flex justify-center w-full">
+        <div className="pointer-events-auto absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-1 bg-slate-950/95 border border-slate-800 px-2.5 py-1.5 rounded-full shadow-2xl backdrop-blur-md z-40 sm:hidden max-w-[65vw]">
+          <button
+            onClick={() => cycleTool('prev')}
+            className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 active:bg-emerald-600 text-slate-300 font-bold flex items-center justify-center border border-slate-700 text-[10px] shrink-0"
+            title="Previous Tool"
+          >
+            ◄
+          </button>
+          
+          <button
+            onClick={() => {
+              if (equippedTool === 'furniture') setCatalogOpen(true);
+              else if (equippedTool === 'paint_roller' || equippedTool === 'flooring' || equippedTool === 'wall_builder') setPaintMenuOpen(true);
+            }}
+            className="flex items-center space-x-1.5 px-2.5 py-1 bg-gradient-to-r from-emerald-950 to-teal-950 border border-emerald-500/60 rounded-full text-emerald-300 font-semibold text-[11px] truncate max-w-[130px] active:scale-95 transition"
+          >
+            {tools.find((t) => t.id === equippedTool)?.icon}
+            <span className="truncate">{tools.find((t) => t.id === equippedTool)?.label}</span>
+          </button>
+
+          <button
+            onClick={() => cycleTool('next')}
+            className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 active:bg-emerald-600 text-slate-300 font-bold flex items-center justify-center border border-slate-700 text-[10px] shrink-0"
+            title="Next Tool"
+          >
+            ►
+          </button>
+        </div>
+      )}
+
+      {/* Desktop Toolbelt Dock (Bottom-Center on sm+ screens) */}
+      {appMode === 'renovation' && (
+        <footer className="pointer-events-auto relative z-50 hidden sm:flex justify-center w-full">
           <div className="flex items-center space-x-1.5 sm:space-x-2 bg-slate-900/95 backdrop-blur-md p-1.5 sm:p-2 rounded-2xl sm:rounded-3xl border border-slate-800 shadow-2xl max-w-[96vw] overflow-x-auto no-scrollbar touch-pan-x flex-nowrap">
             {tools.map((t) => {
               const isEquipped = equippedTool === t.id;

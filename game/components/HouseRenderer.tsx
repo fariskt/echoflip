@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import * as THREE from 'three';
 import { ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import { useRenovationStore } from '../../stores/renovationStore';
@@ -21,7 +21,10 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
   const wallGhostRef = useRef<THREE.Group>(null);
   const wallGhostMatRef = useRef<THREE.MeshStandardMaterial>(null);
 
-  const [isValidPlacement, setIsValidPlacement] = useState<boolean>(true);
+  const targetPointerRef = useRef<THREE.Group>(null);
+  const targetGridCellMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const targetVecRef = useRef(new THREE.Vector3());
+  const isValidPlacementRef = useRef<boolean>(true);
 
   const activeProperty = useRenovationStore((state) => state.activeProperty);
   const equippedTool = useRenovationStore((state) => state.equippedTool);
@@ -44,53 +47,60 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
   const setSelectedPlacedWallId = useRenovationStore((state) => state.setSelectedPlacedWallId);
 
   const selectedPlacedBlockId = useRenovationStore((state) => state.selectedPlacedBlockId);
-  const setSelectedPlacedBlockId = useRenovationStore((state) => state.setSelectedPlacedBlockId);
-  const deleteRoomBlock = useRenovationStore((state) => state.deleteRoomBlock);
 
-  const gridSnapEnabled = useRenovationStore((state) => state.gridSnapEnabled);
   const gridSnapSize = useRenovationStore((state) => state.gridSnapSize);
-  const snapToGrid = useRenovationStore((state) => state.snapToGrid);
 
+  // 60FPS Zero-Lag Smooth Ghost Preview & Pointer Update Loop
   useFrame(() => {
     if (pointerPosition && pointerNormal) {
       const activeItem = equippedTool === 'furniture' ? selectedFurniture : equippedTool === 'wall_builder' ? selectedWallBlock : null;
-      if (!activeItem) return;
 
-      const res = validatePlacement({
-        item: activeItem,
-        hitPoint: pointerPosition,
-        hitNormal: pointerNormal,
-        hitUserData: pointerHitUserData || {},
-        cameraPosition: camera.position,
-        placementRotation,
-        property: activeProperty
-      });
+      if (activeItem) {
+        const res = validatePlacement({
+          item: activeItem,
+          hitPoint: pointerPosition,
+          hitNormal: pointerNormal,
+          hitUserData: pointerHitUserData || {},
+          cameraPosition: camera.position,
+          placementRotation,
+          property: activeProperty
+        });
 
-      if (res.valid !== isValidPlacement) {
-        setIsValidPlacement(res.valid);
-      }
+        isValidPlacementRef.current = res.valid;
+        const ghostColor = res.valid ? '#22c55e' : '#ef4444';
+        targetVecRef.current.set(...res.alignedPosition);
 
-      const ghostColor = res.valid ? '#22c55e' : '#ef4444';
+        if (furnitureGhostRef.current) {
+          furnitureGhostRef.current.position.lerp(targetVecRef.current, 0.45);
+          if (furnitureGhostMatRef.current) {
+            furnitureGhostMatRef.current.color.set(ghostColor);
+          }
+        }
 
-      if (furnitureGhostRef.current) {
-        furnitureGhostRef.current.position.set(...res.alignedPosition);
-        if (furnitureGhostMatRef.current) {
-          furnitureGhostMatRef.current.color.set(ghostColor);
+        if (wallGhostRef.current) {
+          wallGhostRef.current.position.lerp(targetVecRef.current, 0.45);
+          if (wallGhostMatRef.current) {
+            wallGhostMatRef.current.color.set(ghostColor);
+          }
+        }
+
+        if (targetGridCellMatRef.current) {
+          targetGridCellMatRef.current.color.set(res.valid ? '#10b981' : '#ef4444');
         }
       }
 
-      if (wallGhostRef.current) {
-        wallGhostRef.current.position.set(...res.alignedPosition);
-        if (wallGhostMatRef.current) {
-          wallGhostMatRef.current.color.set(ghostColor);
-        }
+      if (targetPointerRef.current) {
+        const targetPt = new THREE.Vector3(
+          pointerPosition.x + (pointerNormal ? pointerNormal.x * 0.015 : 0),
+          pointerPosition.y + (pointerNormal ? pointerNormal.y * 0.015 : 0.015),
+          pointerPosition.z + (pointerNormal ? pointerNormal.z * 0.015 : 0)
+        );
+        targetPointerRef.current.position.lerp(targetPt, 0.5);
       }
     }
   });
 
   if (!activeProperty) return null;
-
-  const ghostPos = pointerPosition ? snapToGrid([pointerPosition.x, pointerPosition.y, pointerPosition.z]) : null;
 
   return (
     <group>
@@ -223,7 +233,6 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
 
             {/* 3D Perimeter Border & Corner Boundary Indicators */}
             <group position={[0, y + 0.02, 0]}>
-              {/* Corner Posts */}
               {[
                 [minX, minZ],
                 [maxX, minZ],
@@ -242,7 +251,6 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
                 </group>
               ))}
 
-              {/* Outer Perimeter Wireframe Line */}
               <lineSegments position={[centerX, 0.05, centerZ]}>
                 <edgesGeometry args={[new THREE.BoxGeometry(width, 0.05, depth)]} />
                 <lineBasicMaterial color="#10b981" linewidth={3} />
@@ -327,7 +335,7 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
         </group>
       ))}
 
-      {/* 5. Render Placed Furniture with full 3D tilt & rotation */}
+      {/* 5. Render Placed Furniture */}
       {activeProperty.furniture.map((item) => {
         const radRotation: [number, number, number] = [
           (item.rotation[0] * Math.PI) / 180,
@@ -349,7 +357,6 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
               useRenovationStore.getState().showToast(`🔍 Selected ${item.name}! Use [R] Yaw, [T] Tilt, [G] Roll to rotate`);
             }}
           >
-            {/* Active Selection Box Wireframe */}
             {isSelectedPlaced && (
               <mesh position={[0, 0.5, 0]}>
                 <boxGeometry args={[2.2, 1.2, 1.2]} />
@@ -399,7 +406,6 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
               </mesh>
             )}
 
-            {/* Generic Fallback Box for items */}
             {!['Sofa', 'Chair', 'Table', 'Table_Large', 'Desk', 'Bed', 'Cabinet', 'Lamp'].includes(item.meshName) && (
               <mesh userData={{ type: 'furniture', id: item.id, name: item.name }} castShadow receiveShadow position={[0, 0.5, 0]}>
                 <boxGeometry args={[1, 1, 1]} />
@@ -414,7 +420,6 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
       {equippedTool === 'furniture' && selectedFurniture && (
         <group
           ref={furnitureGhostRef}
-          position={ghostPos || [0, 0, 0]}
           rotation={[
             (placementRotation[0] * Math.PI) / 180,
             (placementRotation[1] * Math.PI) / 180,
@@ -431,17 +436,62 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
       {equippedTool === 'wall_builder' && (
         <group
           ref={wallGhostRef}
-          position={ghostPos || [0, 0, 0]}
           rotation={[
             (placementRotation[0] * Math.PI) / 180,
             (placementRotation[1] * Math.PI) / 180,
             (placementRotation[2] * Math.PI) / 180
           ]}
         >
-          <mesh>
+          <mesh position={[0, 0.5, 0]}>
             <boxGeometry args={[1.0, 1.0, 1.0]} />
             <meshStandardMaterial ref={wallGhostMatRef} color="#22c55e" transparent opacity={0.65} />
           </mesh>
+        </group>
+      )}
+
+      {/* 7. Dynamic 3D Dot Target Pointer Marker */}
+      {pointerPosition && (
+        <group ref={targetPointerRef}>
+          {/* Target Ring Pointer Indicator */}
+          <mesh rotation={pointerNormal && Math.abs(pointerNormal.y) > 0.5 ? [-Math.PI / 2, 0, 0] : [0, 0, 0]}>
+            <ringGeometry args={[0.08, 0.16, 24]} />
+            <meshBasicMaterial
+              color={
+                pointerHitUserData?.type === 'wall' || pointerHitUserData?.type === 'furniture' || pointerHitUserData?.type === 'stain' || pointerHitUserData?.type === 'fixture'
+                  ? '#38bdf8'
+                  : '#10b981'
+              }
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.9}
+            />
+          </mesh>
+
+          {/* Center Target Dot */}
+          <mesh>
+            <sphereGeometry args={[0.04, 12, 12]} />
+            <meshBasicMaterial
+              color={
+                pointerHitUserData?.type === 'wall' || pointerHitUserData?.type === 'furniture' || pointerHitUserData?.type === 'stain' || pointerHitUserData?.type === 'fixture'
+                  ? '#06b6d4'
+                  : '#34d399'
+              }
+            />
+          </mesh>
+
+          {/* Grid Cell Target Box Overlay when targeting Empty Grid Floor */}
+          {(equippedTool === 'furniture' || equippedTool === 'wall_builder') && (
+            <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[gridSnapSize, gridSnapSize]} />
+              <meshBasicMaterial
+                ref={targetGridCellMatRef}
+                color="#10b981"
+                transparent
+                opacity={0.35}
+                wireframe={true}
+              />
+            </mesh>
+          )}
         </group>
       )}
     </group>

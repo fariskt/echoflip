@@ -121,8 +121,14 @@ export function validatePlacement({
   }
 
   // Calculate aligned pivot offset based on surface normal & dimensions
-  // For floor objects, bottom sits on surface (y + dims[1]/2)
   const pos: [number, number, number] = [hitPoint.x, hitPoint.y, hitPoint.z];
+
+  // Grid snap alignment for floor & top surfaces
+  const gridSnapSize = 1.0;
+  if (isUpwardNormal) {
+    pos[0] = Math.floor(hitPoint.x / gridSnapSize) * gridSnapSize + gridSnapSize / 2;
+    pos[2] = Math.floor(hitPoint.z / gridSnapSize) * gridSnapSize + gridSnapSize / 2;
+  }
 
   if (requiredSurface === 'FloorOnly' || requiredSurface === 'Tabletop' || requiredSurface === 'SurfaceFlat') {
     if (isUpwardNormal) {
