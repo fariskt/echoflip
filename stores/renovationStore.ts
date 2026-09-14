@@ -101,6 +101,9 @@ export interface RenovationState {
   };
   setMobileMove: (dir: 'forward' | 'backward' | 'left' | 'right' | 'up' | 'down' | 'turnLeft' | 'turnRight' | 'sprint', active: boolean) => void;
   setMobileAnalog: (x: number, y: number) => void;
+  mobileLookDelta: { x: number; y: number };
+  addMobileLookDelta: (dx: number, dy: number) => void;
+  consumeMobileLookDelta: () => { x: number; y: number };
   actionSignal: number;
   triggerMobileAction: () => void;
 
@@ -232,6 +235,17 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
   setMobileAnalog: (x, y) => set((state) => ({
     mobileMoveState: { ...state.mobileMoveState, analogX: x, analogY: y }
   })),
+  mobileLookDelta: { x: 0, y: 0 },
+  addMobileLookDelta: (dx, dy) => set((state) => ({
+    mobileLookDelta: { x: state.mobileLookDelta.x + dx, y: state.mobileLookDelta.y + dy }
+  })),
+  consumeMobileLookDelta: () => {
+    const current = get().mobileLookDelta;
+    if (current.x !== 0 || current.y !== 0) {
+      set({ mobileLookDelta: { x: 0, y: 0 } });
+    }
+    return current;
+  },
   triggerMobileAction: () => set((state) => ({
     actionSignal: state.actionSignal + 1
   })),

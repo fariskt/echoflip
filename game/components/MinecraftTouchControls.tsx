@@ -3,28 +3,16 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useRenovationStore } from '../../stores/renovationStore';
 import {
-  ChevronUp,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Zap,
   Hammer,
   ArrowUp,
-  ArrowDown,
-  Compass
+  ArrowDown
 } from 'lucide-react';
-
-interface TouchPoint {
-  id: number;
-  startX: number;
-  startY: number;
-  currentX: number;
-  currentY: number;
-}
 
 export const MinecraftTouchControls: React.FC = () => {
   const setMobileMove = useRenovationStore((state) => state.setMobileMove);
   const setMobileAnalog = useRenovationStore((state) => state.setMobileAnalog);
+  const addMobileLookDelta = useRenovationStore((state) => state.addMobileLookDelta);
   const triggerMobileAction = useRenovationStore((state) => state.triggerMobileAction);
   const mobileMoveState = useRenovationStore((state) => state.mobileMoveState);
 
@@ -35,7 +23,10 @@ export const MinecraftTouchControls: React.FC = () => {
   const joystickTouchIdRef = useRef<number | null>(null);
   const joystickBaseRef = useRef<HTMLDivElement | null>(null);
 
-  // Detect if user is on touch screen device
+  const lookTouchIdRef = useRef<number | null>(null);
+  const lastLookPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Detect touch capability or smaller screens
   useEffect(() => {
     const checkTouch = () => {
       const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -50,7 +41,7 @@ export const MinecraftTouchControls: React.FC = () => {
     return null;
   }
 
-  // --- JOYSTICK TOUCH HANDLERS ---
+  // --- LEFT SIDE JOYSTICK TOUCH HANDLERS ---
   const handleJoystickTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     e.stopPropagation();
     if (joystickTouchIdRef.current !== null) return;
@@ -119,40 +110,88 @@ export const MinecraftTouchControls: React.FC = () => {
     const normX = dx / maxRadius;
     const normY = dy / maxRadius;
 
-    // Analog strafe & forward
-    // dy < 0 is forward, dy > 0 is backward
+    // Analog strafe (x) & forward/backward (y)
     setMobileAnalog(normX, -normY);
   };
 
+  // --- RIGHT SIDE TOUCH LOOK DRAG HANDLERS (Minecraft PE 360° Pan & Tilt) ---
+  const handleLookTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (lookTouchIdRef.current !== null) return;
+
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+
+    lookTouchIdRef.current = touch.identifier;
+    lastLookPosRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleLookTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (lookTouchIdRef.current === null) return;
+
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      if (touch.identifier === lookTouchIdRef.current) {
+        const dx = touch.clientX - lastLookPosRef.current.x;
+        const dy = touch.clientY - lastLookPosRef.current.y;
+        lastLookPosRef.current = { x: touch.clientX, y: touch.clientY };
+
+        addMobileLookDelta(dx, dy);
+        break;
+      }
+    }
+  };
+
+  const handleLookTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (lookTouchIdRef.current === null) return;
+
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === lookTouchIdRef.current) {
+        lookTouchIdRef.current = null;
+        break;
+      }
+    }
+  };
+
   return (
-    <div className="pointer-events-none fixed inset-0 z-40 select-none overflow-hidden touch-none">
+    <div className="pointer-events-none fixed inset-0 z-30 select-none overflow-hidden touch-none">
+      {/* --- RIGHT SIDE TOUCH LOOK ZONE (360° Camera Pan & Tilt) --- */}
+      <div
+        onTouchStart={handleLookTouchStart}
+        onTouchMove={handleLookTouchMove}
+        onTouchEnd={handleLookTouchEnd}
+        onTouchCancel={handleLookTouchEnd}
+        className="pointer-events-auto absolute right-0 top-0 w-2/3 h-full touch-none z-30 opacity-0"
+      />
+
       {/* --- MINECRAFT LEFT SIDE D-PAD / JOYSTICK ZONE --- */}
-      <div className="pointer-events-auto absolute bottom-6 left-6 flex items-center justify-center">
-        {/* Analog Joystick Touch Container */}
+      <div className="pointer-events-auto absolute bottom-6 left-6 z-40 flex items-center justify-center">
         <div
           ref={joystickBaseRef}
           onTouchStart={handleJoystickTouchStart}
           onTouchMove={handleJoystickTouchMove}
           onTouchEnd={handleJoystickTouchEnd}
           onTouchCancel={handleJoystickTouchEnd}
-          className="relative w-36 h-36 rounded-full bg-slate-950/70 border-2 border-emerald-500/50 backdrop-blur-md flex items-center justify-center shadow-2xl active:border-emerald-400"
+          className="relative w-36 h-36 rounded-full bg-slate-950/75 border-2 border-emerald-500/60 backdrop-blur-md flex items-center justify-center shadow-2xl active:border-emerald-400 touch-none"
         >
-          {/* Classic Minecraft D-Pad Button Guides (Tactile overlays) */}
+          {/* Classic Minecraft D-Pad Overlay Guides */}
           <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 p-1 pointer-events-none opacity-40">
             <div />
-            <div className="flex items-center justify-center font-bold text-emerald-400">▲</div>
+            <div className="flex items-center justify-center font-bold text-emerald-400 text-xs">▲</div>
             <div />
-            <div className="flex items-center justify-center font-bold text-emerald-400">◄</div>
-            <div className="flex items-center justify-center text-[10px] text-slate-400 font-mono">D-PAD</div>
-            <div className="flex items-center justify-center font-bold text-emerald-400">►</div>
+            <div className="flex items-center justify-center font-bold text-emerald-400 text-xs">◄</div>
+            <div className="flex items-center justify-center text-[9px] text-slate-400 font-mono">D-PAD</div>
+            <div className="flex items-center justify-center font-bold text-emerald-400 text-xs">►</div>
             <div />
-            <div className="flex items-center justify-center font-bold text-emerald-400">▼</div>
+            <div className="flex items-center justify-center font-bold text-emerald-400 text-xs">▼</div>
             <div />
           </div>
 
-          {/* Dynamic Joystick Thumb Knob */}
+          {/* Dynamic Joystick Knob */}
           <div
-            className={`w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 border-2 border-white/80 shadow-lg flex items-center justify-center transition-transform duration-75 ${
+            className={`w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 border-2 border-white/90 shadow-lg flex items-center justify-center transition-transform duration-75 ${
               joystickActive ? 'scale-110 shadow-emerald-500/50' : ''
             }`}
             style={{
@@ -165,7 +204,7 @@ export const MinecraftTouchControls: React.FC = () => {
       </div>
 
       {/* --- MINECRAFT RIGHT SIDE ACTION BUTTONS (Jump, Sneak, Use Tool, Sprint) --- */}
-      <div className="pointer-events-auto absolute bottom-6 right-6 flex flex-col items-end gap-3">
+      <div className="pointer-events-auto absolute bottom-6 right-6 z-40 flex flex-col items-end gap-3 touch-none">
         {/* Top Row: Action / Use Tool Button & Sprint Toggle */}
         <div className="flex items-center gap-3">
           {/* Sprint Toggle Button */}
@@ -207,7 +246,7 @@ export const MinecraftTouchControls: React.FC = () => {
           </button>
         </div>
 
-        {/* Bottom Row: Minecraft PE Elevation / Jump & Sneak Buttons */}
+        {/* Bottom Row: Elevation / Jump & Sneak Buttons */}
         <div className="flex items-center gap-2">
           {/* Fly Down / Sneak Button */}
           <button

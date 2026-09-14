@@ -179,8 +179,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [initialTerrainId, loadContract, loadProperty, mode, setLoaded, setLoadingProgress, setObjective, setTerrain]);
 
   return (
-    <div className="relative w-full h-full">
-      <Canvas shadows dpr={[1, 2]} className="w-full h-full block cursor-pointer">
+    <div className="relative w-full h-full touch-none overflow-hidden select-none">
+      <Canvas shadows dpr={[1, 2]} className="w-full h-full block cursor-pointer touch-none">
         <Suspense fallback={null}>
           <EchoFlipScene />
         </Suspense>

@@ -491,6 +491,16 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
       camera.translateX(-velocity.current.x * delta);
     }
 
+    // Apply Touch Drag Camera Rotation (Yaw & Pitch)
+    const lookDelta = useRenovationStore.getState().consumeMobileLookDelta();
+    if (lookDelta.x !== 0 || lookDelta.y !== 0) {
+      camera.rotation.order = 'YXZ';
+      const sensitivity = 0.0035;
+      camera.rotation.y -= lookDelta.x * sensitivity;
+      camera.rotation.x -= lookDelta.y * sensitivity;
+      camera.rotation.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, camera.rotation.x));
+    }
+
     // Discrete Touch camera yaw rotation fallbacks
     if (mobileMove.turnLeft) {
       camera.rotation.y += 1.5 * delta;
