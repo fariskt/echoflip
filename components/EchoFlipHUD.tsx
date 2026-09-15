@@ -283,14 +283,25 @@ export const EchoFlipHUD: React.FC = () => {
           <button
             onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border font-semibold text-xs transition ${isRightPanelOpen
-                ? 'bg-blue-600 text-white border-blue-600 shadow'
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+              ? 'bg-blue-600 text-white border-blue-600 shadow'
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
               }`}
             title="Toggle 2D Drone Schematic Map & Inspector"
           >
             <Map className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">2D Map</span>
           </button>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleEnterLandscapeFullscreen}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-blue-600 font-bold text-xs border border-slate-300 transition"
+              title="Toggle Fullscreen Landscape View"
+            >
+              <Maximize className="w-3.5 h-3.5 text-blue-600" />
+              <span>Fullscreen ⛶</span>
+            </button>
+          </div>
 
           <button
             onClick={() => setAppMode(appMode === 'renovation' ? 'editor' : 'renovation')}
@@ -656,27 +667,6 @@ export const EchoFlipHUD: React.FC = () => {
           <span>{toastMessage}</span>
         </div>
       )}
-
-      {/* ========================================================================= */}
-      {/* 3. CLEAN BOTTOM BAR VIEWPORT CONTROLS */}
-      {/* ========================================================================= */}
-      <footer className="hidden md:flex pointer-events-auto bg-white/95 text-slate-800 shadow-sm border-t border-slate-200 px-4 py-2 items-center justify-between backdrop-blur-md z-40">
-        <div className="flex items-center space-x-2 text-xs text-slate-600 font-semibold">
-          <span>60m × 60m Base Plot</span>
-        </div>
-
-        {/* Working Fullscreen Landscape Button */}
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleEnterLandscapeFullscreen}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-blue-600 font-bold text-xs border border-slate-300 transition"
-            title="Toggle Fullscreen Landscape View"
-          >
-            <Maximize className="w-3.5 h-3.5 text-blue-600" />
-            <span>Fullscreen ⛶</span>
-          </button>
-        </div>
-      </footer>
 
       {/* Working Furniture Catalog Modal */}
       {isCatalogOpen && (
