@@ -6,6 +6,7 @@ export type RenovationTool =
   | 'hammer'
   | 'wall_builder'
   | 'room_builder'
+  | 'roof_builder'
   | 'furniture';
 
 export type RoomBlockType =
@@ -14,7 +15,31 @@ export type RoomBlockType =
   | 'ceiling'
   | 'empty_room'
   | 'full_room'
-  | 'foundation';
+  | 'foundation'
+  | 'roof';
+
+export type FloorLevel = 'basement' | 'ground' | 'first' | 'second' | 'roof';
+
+export type RoomShapeMode = 'rectangle' | 'single_wall' | 'polygon' | 'partition';
+
+export type RoofType = 'none' | 'flat' | 'gable' | 'hipped';
+
+export type RoomTag =
+  | 'Living Room'
+  | 'Bedroom'
+  | 'Kitchen'
+  | 'Bathroom'
+  | 'Garage'
+  | 'Hallway'
+  | 'Custom';
+
+export interface WallCutout {
+  id: string;
+  offset: number; // distance along wall segment from startPoint
+  width: number;
+  height: number;
+  type: 'door' | 'window';
+}
 
 export interface RoomBlock {
   id: string;
@@ -29,6 +54,11 @@ export interface RoomBlock {
   hasCeiling?: boolean;
   color?: string;
   createdAt?: number;
+  floorLevel?: FloorLevel;
+  elevationY?: number;
+  roomTag?: RoomTag;
+  roofType?: RoofType;
+  polygonPoints?: [number, number, number][];
 }
 
 export interface WallBlockPreset {
@@ -83,6 +113,7 @@ export interface WallSegment {
   hasDoor?: boolean;
   blockType?: 'drywall' | 'brick' | 'stone' | 'glass' | 'doorway';
   rotation?: [number, number, number];
+  cutouts?: WallCutout[];
 }
 
 export interface FlooringTile {

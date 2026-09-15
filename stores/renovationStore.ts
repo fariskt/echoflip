@@ -116,6 +116,20 @@ export interface RenovationState {
   roomBlockStartPoint: [number, number, number] | null;
   setRoomBlockStartPoint: (pt: [number, number, number] | null) => void;
 
+  // House Builder & Multi-Floor State
+  activeFloorLevel: import('../types/renovation').FloorLevel;
+  setActiveFloorLevel: (level: import('../types/renovation').FloorLevel) => void;
+  roomShapeMode: import('../types/renovation').RoomShapeMode;
+  setRoomShapeMode: (mode: import('../types/renovation').RoomShapeMode) => void;
+  selectedRoomTag: import('../types/renovation').RoomTag;
+  setSelectedRoomTag: (tag: import('../types/renovation').RoomTag) => void;
+  selectedRoofType: import('../types/renovation').RoofType;
+  setSelectedRoofType: (roof: import('../types/renovation').RoofType) => void;
+  polygonPathPoints: [number, number, number][];
+  addPolygonPoint: (pt: [number, number, number]) => void;
+  clearPolygonPath: () => void;
+  getFloorElevationY: (level?: import('../types/renovation').FloorLevel) => number;
+
   // Undo / Redo Stacks
   undoStack: RenovationProperty[];
   redoStack: RenovationProperty[];
@@ -253,12 +267,35 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
   transformGizmoMode: 'translate',
   setTransformGizmoMode: (mode) => set({ transformGizmoMode: mode }),
 
-  activeRoomBlockType: 'empty_room',
+  activeRoomBlockType: 'wall',
   roomBlockHeight: 2.8,
   roomBlockWallThickness: 0.2,
   includeCeiling: true,
   roomBlockStartPoint: null,
   setRoomBlockStartPoint: (pt) => set({ roomBlockStartPoint: pt }),
+
+  activeFloorLevel: 'ground',
+  setActiveFloorLevel: (level) => set({ activeFloorLevel: level }),
+  roomShapeMode: 'single_wall',
+  setRoomShapeMode: (mode) => set({ roomShapeMode: mode, polygonPathPoints: [], roomBlockStartPoint: null }),
+  selectedRoomTag: 'Living Room',
+  setSelectedRoomTag: (tag) => set({ selectedRoomTag: tag }),
+  selectedRoofType: 'none',
+  setSelectedRoofType: (roof) => set({ selectedRoofType: roof }),
+  polygonPathPoints: [],
+  addPolygonPoint: (pt) => set((state) => ({ polygonPathPoints: [...state.polygonPathPoints, pt] })),
+  clearPolygonPath: () => set({ polygonPathPoints: [] }),
+  getFloorElevationY: (targetLevel) => {
+    const level = targetLevel || get().activeFloorLevel;
+    switch (level) {
+      case 'basement': return -3.0;
+      case 'ground': return 0.0;
+      case 'first': return 2.8;
+      case 'second': return 5.6;
+      case 'roof': return 8.4;
+      default: return 0.0;
+    }
+  },
 
   undoStack: [],
   redoStack: [],
@@ -346,13 +383,18 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
   },
 
   createRoomBlock: (blockData) => {
-    const { activeProperty, pushUndoState, showToast } = get();
+    const { activeProperty, pushUndoState, showToast, activeFloorLevel, getFloorElevationY, selectedRoomTag, selectedRoofType } = get();
     if (!activeProperty) return '';
 
     pushUndoState();
 
     const id = 'block_' + Math.random().toString(36).substring(2, 9);
+    const startElevation = blockData.elevationY ?? (blockData.start ? blockData.start[1] : getFloorElevationY());
     const newBlock: RoomBlock = {
+      floorLevel: activeFloorLevel,
+      elevationY: startElevation,
+      roomTag: selectedRoomTag,
+      roofType: selectedRoofType,
       ...blockData,
       id,
       createdAt: Date.now()

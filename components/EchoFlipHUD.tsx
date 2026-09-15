@@ -42,6 +42,7 @@ import { SchematicMap } from './SchematicMap';
 
 export const EchoFlipHUD: React.FC = () => {
   const [isAssetDebugOpen, setIsAssetDebugOpen] = React.useState(false);
+  const [sidebarTab, setSidebarTab] = React.useState<'build' | 'style' | 'catalog'>('build');
   const [activeTab, setActiveTab] = React.useState<'draw' | 'finish' | 'furniture' | 'doors'>('draw');
   const [isLeftPanelOpen, setIsLeftPanelOpen] = React.useState<boolean>(true);
   const [isTopBarOpen, setIsTopBarOpen] = React.useState<boolean>(true);
@@ -113,6 +114,15 @@ export const EchoFlipHUD: React.FC = () => {
   const toggleGridSnap = useRenovationStore((state) => state.toggleGridSnap);
   const setGridSnapSize = useRenovationStore((state) => state.setGridSnapSize);
 
+  const activeFloorLevel = useRenovationStore((state) => state.activeFloorLevel);
+  const setActiveFloorLevel = useRenovationStore((state) => state.setActiveFloorLevel);
+  const roomShapeMode = useRenovationStore((state) => state.roomShapeMode);
+  const setRoomShapeMode = useRenovationStore((state) => state.setRoomShapeMode);
+  const selectedRoomTag = useRenovationStore((state) => state.selectedRoomTag);
+  const setSelectedRoomTag = useRenovationStore((state) => state.setSelectedRoomTag);
+  const selectedRoofType = useRenovationStore((state) => state.selectedRoofType);
+  const setSelectedRoofType = useRenovationStore((state) => state.setSelectedRoofType);
+
   const moveSelectedObject = useRenovationStore((state) => state.moveSelectedObject);
   const duplicateSelectedObject = useRenovationStore((state) => state.duplicateSelectedObject);
   const deleteSelectedObject = useRenovationStore((state) => state.deleteSelectedObject);
@@ -131,6 +141,39 @@ export const EchoFlipHUD: React.FC = () => {
       setIsRightPanelOpen(true);
     }
   }, [hasSelectedObject]);
+
+  const getToolActionPrompt = (): string => {
+    switch (equippedTool) {
+      case 'inspect':
+        return hasSelectedObject
+          ? `Inspecting ${selectedObjectName || 'Object'} (ESC to deselect)`
+          : 'Click object to select / inspect';
+      case 'sponge':
+        return 'Click dirty stain on surface to clean';
+      case 'paint_roller':
+        return `Click wall to paint (${selectedPaintColor?.name || 'Selected Color'})`;
+      case 'flooring':
+        return `Click floor to apply (${selectedFlooring?.name || 'Selected Material'})`;
+      case 'hammer':
+        return 'Click wall or object to demolish';
+      case 'wall_builder':
+        return `Click ground/wall to place ${selectedWallBlock?.name || 'Wall Block'}`;
+      case 'room_builder':
+        return roomBlockStartPoint
+          ? `Click 2nd corner to finish ${selectedRoomTag} [${activeFloorLevel.toUpperCase()}]`
+          : `Click 1st corner to start ${selectedRoomTag} [${activeFloorLevel.toUpperCase()}]`;
+      case 'roof_builder':
+        return roomBlockStartPoint
+          ? `Click 2nd corner to complete Roof structure [${activeFloorLevel.toUpperCase()}]`
+          : `Click 1st corner to start drawing Roof [${activeFloorLevel.toUpperCase()}]`;
+      case 'furniture':
+        return selectedFurniture
+          ? `Click surface to place ${selectedFurniture.name}`
+          : 'Open Furniture Catalog to select item';
+      default:
+        return 'Select a tool to begin';
+    }
+  };
 
   const [isPortrait, setIsPortrait] = React.useState<boolean>(false);
   const [selectedCatalogCategory, setSelectedCatalogCategory] = React.useState<string>('all');
@@ -201,31 +244,6 @@ export const EchoFlipHUD: React.FC = () => {
     }
     if (window.innerWidth < 850) {
       setIsLeftPanelOpen(false);
-    }
-  };
-
-  const getToolActionPrompt = () => {
-    switch (equippedTool) {
-      case 'inspect':
-        return 'Tap object to inspect details';
-      case 'paint_roller':
-        return `Tap wall to paint with ${selectedPaintColor.name}`;
-      case 'flooring':
-        return `Tap floor to install ${selectedFlooring.name}`;
-      case 'hammer':
-        return 'Tap wall block to demolish';
-      case 'wall_builder':
-        return `Aim crosshair & tap ACTION / Left-Click to place ${selectedWallBlock.name}`;
-      case 'room_builder':
-        return roomBlockStartPoint
-          ? '🎯 Corner 1 set! Aim to resize & tap ACTION / Left-Click to finish'
-          : 'Aim crosshair at floor & tap ACTION / Left-Click to set 1st Corner!';
-      case 'furniture':
-        return selectedFurniture
-          ? `Tap floor to place ${selectedFurniture.name}`
-          : 'Select item from catalog';
-      default:
-        return 'Tap to interact';
     }
   };
 
@@ -368,12 +386,6 @@ export const EchoFlipHUD: React.FC = () => {
         )}
       </header>
 
-      {/* Top Floating Action Prompt Banner (Mobile & Desktop) */}
-      <div className={`pointer-events-auto fixed ${isTopBarOpen ? 'top-28 sm:top-14' : 'top-3.5'} left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 bg-slate-900/90 text-white px-4 py-1.5 rounded-full border border-slate-700/80 shadow-2xl text-xs font-semibold backdrop-blur-md max-w-[92vw] truncate transition-all duration-300`}>
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-        <span className="truncate">{getToolActionPrompt()}</span>
-      </div>
-
       {/* Mobile Portrait Landscape Overlay */}
       {isPortrait && (
         <div className="pointer-events-auto fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center">
@@ -448,84 +460,225 @@ export const EchoFlipHUD: React.FC = () => {
 
           {/* Expandable Left Drawer Panel */}
           {isLeftPanelOpen && (
-            <div className="w-64 bg-white/95 border-r border-slate-200 shadow-xl backdrop-blur-md flex flex-col justify-between overflow-y-auto p-4 text-slate-800">
+            <div className="w-72 bg-white/95 border-r border-slate-200/90 shadow-2xl backdrop-blur-xl flex flex-col justify-between overflow-y-auto p-4 text-slate-800 transition-all duration-300">
               <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <h2 className="font-extrabold text-sm text-slate-900 tracking-tight">Floor plan</h2>
-                  <button onClick={() => setIsLeftPanelOpen(false)} className="text-slate-400 hover:text-slate-700">
+                {/* Panel Header */}
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+                    <h2 className="font-extrabold text-sm text-slate-900 tracking-tight">Floor Plan Tools</h2>
+                  </div>
+                  <button onClick={() => setIsLeftPanelOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Working Architectural Draw Tools */}
+                {/* Compact Floor Elevation Level Pills */}
                 <div>
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Draw room</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleToolClick('wall_builder')}
-                      className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${equippedTool === 'wall_builder' ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'}`}
-                    >
-                      <SquarePlus className="w-6 h-6 text-slate-700 mb-1" />
-                      <span className="text-xs font-medium">Straight wall (B)</span>
-                    </button>
-                    <button
-                      onClick={() => handleToolClick('room_builder')}
-                      className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${equippedTool === 'room_builder' ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'}`}
-                    >
-                      <Box className="w-6 h-6 text-slate-700 mb-1" />
-                      <span className="text-xs font-medium">Wall Side (F)</span>
-                    </button>
-                    <button
-                      onClick={() => handleToolClick('hammer')}
-                      className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${equippedTool === 'hammer' ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'}`}
-                    >
-                      <Hammer className="w-6 h-6 text-slate-700 mb-1" />
-                      <span className="text-xs font-medium">Demolish</span>
-                    </button>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Level Elevation</span>
+                    <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase">{activeFloorLevel}</span>
+                  </div>
+                  <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl overflow-x-auto text-[11px] font-bold scrollbar-none">
+                    {(['basement', 'ground', 'first', 'second', 'roof'] as const).map((lvl) => (
+                      <button
+                        key={lvl}
+                        onClick={() => setActiveFloorLevel(lvl)}
+                        className={`flex-1 py-1.5 px-2 rounded-lg capitalize transition whitespace-nowrap ${
+                          activeFloorLevel === lvl
+                            ? 'bg-blue-600 text-white shadow-sm font-extrabold'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        }`}
+                      >
+                        {lvl === 'ground' ? 'Ground' : lvl === 'first' ? '1st' : lvl === 'second' ? '2nd' : lvl === 'basement' ? 'Bsmnt' : 'Roof'}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Place Doors and Windows Category */}
-                <div>
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Place doors and windows</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => { setCatalogOpen(true); setSelectedCatalogCategory('doors'); }}
-                      className="p-2.5 rounded-xl border bg-slate-50 border-slate-200 hover:bg-slate-100 flex flex-col items-center text-center"
-                    >
-                      <DoorOpen className="w-5 h-5 text-slate-700 mb-1" />
-                      <span className="text-[11px] font-medium text-slate-700">Door Catalog</span>
-                    </button>
-                    <button
-                      onClick={() => { setCatalogOpen(true); setSelectedCatalogCategory('windows'); }}
-                      className="p-2.5 rounded-xl border bg-slate-50 border-slate-200 hover:bg-slate-100 flex flex-col items-center text-center"
-                    >
-                      <AppWindow className="w-5 h-5 text-slate-700 mb-1" />
-                      <span className="text-[11px] font-medium text-slate-700">Window Catalog</span>
-                    </button>
-                  </div>
+                {/* Clean Tab Segmented Control */}
+                <div className="flex items-center space-x-1 bg-slate-100/90 p-1 rounded-xl text-xs font-bold border border-slate-200/60">
+                  <button
+                    onClick={() => setSidebarTab('build')}
+                    className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center space-x-1 ${
+                      sidebarTab === 'build'
+                        ? 'bg-white text-blue-700 shadow-sm font-extrabold'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>🛠️ Build</span>
+                  </button>
+                  <button
+                    onClick={() => setSidebarTab('style')}
+                    className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center space-x-1 ${
+                      sidebarTab === 'style'
+                        ? 'bg-white text-blue-700 shadow-sm font-extrabold'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>🎨 Style</span>
+                  </button>
+                  <button
+                    onClick={() => setSidebarTab('catalog')}
+                    className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center space-x-1 ${
+                      sidebarTab === 'catalog'
+                        ? 'bg-white text-blue-700 shadow-sm font-extrabold'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>📦 Catalog</span>
+                  </button>
                 </div>
 
-                {/* Working Catalog & Finishes Shortcuts */}
-                <div>
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Catalog & Finishes</h3>
-                  <div className="space-y-1.5">
+                {/* TAB 1: BUILD TOOLS */}
+                {sidebarTab === 'build' && (
+                  <div className="space-y-3 animate-fadeIn">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          handleToolClick('room_builder');
+                          setActiveRoomBlockType('wall');
+                          setRoomShapeMode('single_wall');
+                        }}
+                        className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${
+                          equippedTool === 'room_builder' && activeRoomBlockType === 'wall'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-md font-bold'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        <Box className="w-5 h-5 mb-1" />
+                        <span className="text-xs font-semibold">Wall Side (F)</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleToolClick('room_builder');
+                          setActiveRoomBlockType('empty_room');
+                          setRoomShapeMode('rectangle');
+                        }}
+                        className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${
+                          equippedTool === 'room_builder' && activeRoomBlockType === 'empty_room'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-md font-bold'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        <SquarePlus className="w-5 h-5 mb-1" />
+                        <span className="text-xs font-semibold">Full Room (B)</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleToolClick('roof_builder');
+                          setActiveRoomBlockType('roof');
+                        }}
+                        className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${
+                          equippedTool === 'roof_builder' || activeRoomBlockType === 'roof'
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-md font-bold'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        <Sparkles className="w-5 h-5 mb-1" />
+                        <span className="text-xs font-semibold">Draw Roof (R)</span>
+                      </button>
+                      <button
+                        onClick={() => handleToolClick('hammer')}
+                        className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${
+                          equippedTool === 'hammer'
+                            ? 'bg-red-600 text-white border-red-600 shadow-md font-bold'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        <Hammer className="w-5 h-5 mb-1" />
+                        <span className="text-xs font-semibold">Demolish</span>
+                      </button>
+                    </div>
+
+                    {/* Quick Wall Dimension Controls */}
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 text-xs">
+                      <div className="flex justify-between font-bold text-slate-700">
+                        <span>Wall Height</span>
+                        <span className="text-blue-600 font-extrabold">{roomBlockHeight}m</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max="6"
+                        step="0.2"
+                        value={roomBlockHeight}
+                        onChange={(e) => setRoomBlockHeight(parseFloat(e.target.value))}
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: STYLE & TAGS */}
+                {sidebarTab === 'style' && (
+                  <div className="space-y-3 animate-fadeIn text-xs">
+                    <div>
+                      <label className="text-[10px] font-extrabold text-slate-500 uppercase block mb-1">Room Label Tag</label>
+                      <select
+                        value={selectedRoomTag}
+                        onChange={(e) => setSelectedRoomTag(e.target.value as any)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {['Living Room', 'Bedroom', 'Kitchen', 'Bathroom', 'Garage', 'Hallway', 'Custom'].map((tag) => (
+                          <option key={tag} value={tag}>{tag}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-extrabold text-slate-500 uppercase block mb-1">Roof Structure Style</label>
+                      <select
+                        value={selectedRoofType}
+                        onChange={(e) => setSelectedRoofType(e.target.value as any)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="none">No Roof (Open Ceiling)</option>
+                        <option value="flat">Flat Roof Slab</option>
+                        <option value="gable">Gable Pitch Roof</option>
+                        <option value="hipped">Hipped Pyramid Roof</option>
+                      </select>
+                    </div>
+
                     <button
                       onClick={() => setPaintMenuOpen(true)}
-                      className="w-full text-left px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-bold flex items-center justify-between border border-blue-200 transition"
+                      className="w-full text-left px-3 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 font-extrabold flex items-center justify-between border border-blue-200 transition shadow-sm"
                     >
                       <span>🎨 Paint & Wall Finishes</span>
                       <span>→</span>
                     </button>
+                  </div>
+                )}
+
+                {/* TAB 3: CATALOG & OPENINGS */}
+                {sidebarTab === 'catalog' && (
+                  <div className="space-y-3 animate-fadeIn text-xs">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => { setCatalogOpen(true); setSelectedCatalogCategory('doors'); }}
+                        className="p-3 rounded-xl border bg-slate-50 border-slate-200 hover:bg-blue-50 hover:border-blue-300 flex flex-col items-center text-center transition"
+                      >
+                        <DoorOpen className="w-5 h-5 text-slate-700 mb-1" />
+                        <span className="text-xs font-bold text-slate-700">Door Catalog</span>
+                      </button>
+                      <button
+                        onClick={() => { setCatalogOpen(true); setSelectedCatalogCategory('windows'); }}
+                        className="p-3 rounded-xl border bg-slate-50 border-slate-200 hover:bg-blue-50 hover:border-blue-300 flex flex-col items-center text-center transition"
+                      >
+                        <AppWindow className="w-5 h-5 text-slate-700 mb-1" />
+                        <span className="text-xs font-bold text-slate-700">Window Catalog</span>
+                      </button>
+                    </div>
+
                     <button
                       onClick={() => setCatalogOpen(true)}
-                      className="w-full text-left px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold flex items-center justify-between border border-indigo-200 transition"
+                      className="w-full text-left px-3 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-extrabold flex items-center justify-between border border-indigo-200 transition shadow-sm"
                     >
                       <span>🛋️ Furniture Catalog</span>
                       <span>→</span>
                     </button>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}

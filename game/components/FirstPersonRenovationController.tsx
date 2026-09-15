@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRenovationStore } from '../../stores/renovationStore';
+import type { RoomBlockType } from '../../types/renovation';
 import { validatePlacement } from '../utils/placementValidation';
 import { validateRoomBlockPlacement } from '../utils/roomBlockGenerator';
 
@@ -122,37 +123,63 @@ function findValidRaycastHit(intersects: THREE.Intersection[]): THREE.Intersecti
         ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
         : new THREE.Vector3(0, 1, 0);
 
-      if (equippedTool === 'room_builder') {
+      if (equippedTool === 'room_builder' || equippedTool === 'roof_builder') {
         if (!hit.point) return;
         const store = useRenovationStore.getState();
         const step = store.gridSnapEnabled ? store.gridSnapSize : 1.0;
-        const snappedPt: [number, number, number] = store.gridSnapEnabled
-          ? [Math.round(hit.point.x / step) * step, 0, Math.round(hit.point.z / step) * step]
-          : [Number(hit.point.x.toFixed(2)), 0, Number(hit.point.z.toFixed(2))];
+
+        const hitY = hit.point.y || 0;
+        const surfaceY = hitY > 0.1 ? Number(hitY.toFixed(2)) : store.getFloorElevationY();
+
+        let snappedPt: [number, number, number] = store.gridSnapEnabled
+          ? [Math.round(hit.point.x / step) * step, surfaceY, Math.round(hit.point.z / step) * step]
+          : [Number(hit.point.x.toFixed(2)), surfaceY, Number(hit.point.z.toFixed(2))];
 
         const startPt = store.roomBlockStartPoint;
         if (!startPt) {
           store.setRoomBlockStartPoint(snappedPt);
-          store.showToast(`🎯 Point 1 set at (${snappedPt[0]}, ${snappedPt[2]}). Aim at Point 2 & click to create wall!`);
+          const toolLabel = (equippedTool === 'roof_builder' || store.activeRoomBlockType === 'roof') ? 'roof' : 'wall';
+          store.showToast(`🎯 Point 1 set at (${snappedPt[0]}, Y:${snappedPt[1]}, ${snappedPt[2]}). Aim at Point 2 & click!`);
         } else {
+          snappedPt[1] = startPt[1];
+
+          const isSingleWall = store.activeRoomBlockType === 'wall' || store.roomShapeMode === 'single_wall';
+          const isRoof = equippedTool === 'roof_builder' || store.activeRoomBlockType === 'roof';
+
+          if (isSingleWall && !isRoof) {
+            const dx = Math.abs(snappedPt[0] - startPt[0]);
+            const dz = Math.abs(snappedPt[2] - startPt[2]);
+            if (dx >= dz) {
+              snappedPt[2] = startPt[2];
+            } else {
+              snappedPt[0] = startPt[0];
+            }
+          }
+
           const distance = Math.hypot(snappedPt[0] - startPt[0], snappedPt[2] - startPt[2]);
           if (distance < 0.2) {
-            store.showToast(`⚠️ Aim at 2nd point to set wall length (min 0.2m)`);
+            store.showToast(`⚠️ Aim at 2nd point to set length (min 0.2m)`);
             return;
           }
 
           const val = validateRoomBlockPlacement(startPt, snappedPt, store.activeProperty);
           if (!val.valid) {
-            store.showToast(`❌ Cannot create wall: ${val.reason || 'Invalid location'}`);
+            store.showToast(`❌ Cannot create: ${val.reason || 'Invalid location'}`);
             return;
           }
 
           const activeRoomBlockType = store.activeRoomBlockType;
+          const roomShapeMode = store.roomShapeMode;
+          const blockTypeToCreate: RoomBlockType = isRoof
+            ? 'roof'
+            : (roomShapeMode === 'rectangle' ? 'empty_room' : (activeRoomBlockType || 'wall'));
           const roomBlockHeight = store.roomBlockHeight;
-          const height = activeRoomBlockType === 'floor' ? 0.15 : activeRoomBlockType === 'foundation' ? 0.5 : roomBlockHeight;
+          const height = isRoof ? 0.4 : (blockTypeToCreate === 'floor' ? 0.15 : blockTypeToCreate === 'foundation' ? 0.5 : roomBlockHeight);
 
           store.createRoomBlock({
-            type: activeRoomBlockType,
+            type: blockTypeToCreate,
+            elevationY: startPt[1],
+            roofType: store.selectedRoofType === 'none' ? 'flat' : store.selectedRoofType,
             start: startPt,
             end: snappedPt,
             height,
@@ -555,10 +582,19 @@ function findValidRaycastHit(intersects: THREE.Intersection[]): THREE.Intersecti
           setContractMenuOpen(true);
           break;
         case 'KeyB':
-          setEquippedTool('wall_builder');
+          setEquippedTool('room_builder');
+          useRenovationStore.getState().setActiveRoomBlockType('empty_room');
+          useRenovationStore.getState().setRoomShapeMode('rectangle');
           break;
         case 'KeyF':
           setEquippedTool('room_builder');
+          useRenovationStore.getState().setActiveRoomBlockType('wall');
+          useRenovationStore.getState().setRoomShapeMode('single_wall');
+          break;
+        case 'KeyR':
+          setEquippedTool('roof_builder');
+          useRenovationStore.getState().setActiveRoomBlockType('roof');
+          useRenovationStore.getState().showToast('🏠 Roof Draw Tool Equipped [R] - Click 2 points to draw roof!');
           break;
         case 'Escape': {
           const store = useRenovationStore.getState();

@@ -84,7 +84,7 @@ function EchoFlipScene() {
       <ForestBackground />
 
       {/* Interactive Room & Block Drag Creation Tool */}
-      {equippedTool === 'room_builder' && <RoomBlockCreationTool pointerPosition={pointerPos} />}
+      {(equippedTool === 'room_builder' || equippedTool === 'roof_builder') && <RoomBlockCreationTool pointerPosition={pointerPos} />}
 
       {/* Main Property Renovation Base */}
       <HouseRenderer pointerPosition={pointerPos} pointerNormal={pointerNorm} pointerHitUserData={pointerUserData} />

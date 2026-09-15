@@ -87,6 +87,45 @@ const MinecraftGhostBlockPreview: React.FC<{
     );
   };
 
+const RoofMeshRenderer: React.FC<{ roomBlock: any }> = ({ roomBlock }) => {
+  const isDedicatedRoof = roomBlock.type === 'roof';
+  const roofStyle = roomBlock.roofType || (isDedicatedRoof ? 'flat' : 'none');
+  if (roofStyle === 'none') return null;
+
+  const p1 = roomBlock.start;
+  const p2 = roomBlock.end;
+  const minX = Math.min(p1[0], p2[0]);
+  const maxX = Math.max(p1[0], p2[0]);
+  const minZ = Math.min(p1[2], p2[2]);
+  const maxZ = Math.max(p1[2], p2[2]);
+
+  const width = Math.max(0.2, maxX - minX);
+  const depth = Math.max(0.2, maxZ - minZ);
+  const height = roomBlock.height || 2.8;
+  const elevationY = roomBlock.elevationY ?? 0;
+  const roofY = isDedicatedRoof ? elevationY : (elevationY + height);
+
+  const centerX = (minX + maxX) / 2;
+  const centerZ = (minZ + maxZ) / 2;
+
+  if (roofStyle === 'flat') {
+    return (
+      <mesh position={[centerX, roofY + 0.1, centerZ]} userData={{ type: 'wall', id: roomBlock.id }}>
+        <boxGeometry args={[width + 0.4, 0.2, depth + 0.4]} />
+        <meshStandardMaterial color="#475569" roughness={0.6} />
+      </mesh>
+    );
+  }
+
+  const roofHeight = Math.min(width, depth) * 0.4 + 0.8;
+  return (
+    <mesh position={[centerX, roofY + roofHeight / 2, centerZ]} rotation={[0, width > depth ? 0 : Math.PI / 2, 0]} userData={{ type: 'wall', id: roomBlock.id }}>
+      <coneGeometry args={[Math.max(width, depth) * 0.6, roofHeight, 4]} />
+      <meshStandardMaterial color={roofStyle === 'hipped' ? '#9a3412' : '#7c2d12'} roughness={0.5} />
+    </mesh>
+  );
+};
+
 export const HouseRenderer: React.FC<HouseRendererProps> = ({
   pointerPosition,
   pointerNormal,
@@ -337,6 +376,11 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
           </group>
         );
       })}
+
+      {/* Render Roofs for Room Blocks */}
+      {(activeProperty.roomBlocks || []).map((block) => (
+        <RoofMeshRenderer key={`${block.id}_roof`} roomBlock={block} />
+      ))}
 
       {/* 3. Render Dirt Stains */}
       {activeProperty.dirtStains.map((stain) => {
