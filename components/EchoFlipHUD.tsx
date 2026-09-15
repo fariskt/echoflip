@@ -42,7 +42,7 @@ export const EchoFlipHUD: React.FC = () => {
   const [isAssetDebugOpen, setIsAssetDebugOpen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<'draw' | 'finish' | 'furniture' | 'doors'>('draw');
   const [isLeftPanelOpen, setIsLeftPanelOpen] = React.useState<boolean>(true);
-  const [isMobileTopBarOpen, setIsMobileTopBarOpen] = React.useState<boolean>(false);
+  const [isTopBarOpen, setIsTopBarOpen] = React.useState<boolean>(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth >= 850;
@@ -222,14 +222,14 @@ export const EchoFlipHUD: React.FC = () => {
       {/* ========================================================================= */}
       {/* 1. CLEAN TOP HEADER TOOLBAR */}
       {/* ========================================================================= */}
-      <header className="pointer-events-auto bg-white/95 text-slate-800 shadow-sm border-b border-slate-200 px-3 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 backdrop-blur-md z-40 transition-all duration-300">
-        {/* Left Brand Logo - Clickable to toggle top bar on mobile */}
-        <div className="flex items-center justify-between md:justify-start">
+      <header className="pointer-events-auto bg-white/95 text-slate-800 shadow-sm border-b border-slate-200 px-3 py-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 backdrop-blur-md z-40 transition-all duration-300">
+        {/* Left Brand Logo - Clickable to toggle top bar on all devices (PC & Mobile) */}
+        <div className="flex items-center justify-between sm:justify-start">
           <button
             type="button"
-            onClick={() => setIsMobileTopBarOpen((prev) => !prev)}
+            onClick={() => setIsTopBarOpen((prev) => !prev)}
             className="flex items-center space-x-2 cursor-pointer focus:outline-none select-none group text-left"
-            title="Click logo to toggle mobile top bar toolbar"
+            title="Click logo to toggle top toolbar"
           >
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center font-black text-sm text-white shadow-md group-hover:scale-105 transition-transform">
               EF
@@ -238,9 +238,9 @@ export const EchoFlipHUD: React.FC = () => {
               <span className="font-extrabold text-sm tracking-tight text-slate-900">ECHOFlIP</span>
               <span className="text-[10px] text-blue-600 font-bold uppercase bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">Studio</span>
             </div>
-            <div className="md:hidden flex items-center space-x-1 text-slate-500 bg-slate-100 group-hover:bg-slate-200 px-2 py-1 rounded-lg text-[10px] font-bold border border-slate-200 transition ml-2">
-              <span>{isMobileTopBarOpen ? 'Hide Bar' : 'Show Bar'}</span>
-              {isMobileTopBarOpen ? (
+            <div className="flex items-center space-x-1 text-slate-500 bg-slate-100 group-hover:bg-slate-200 px-2 py-1 rounded-lg text-[10px] font-bold border border-slate-200 transition ml-2">
+              <span>{isTopBarOpen ? 'Hide Bar' : 'Show Bar'}</span>
+              {isTopBarOpen ? (
                 <ChevronUp className="w-3.5 h-3.5 text-blue-600" />
               ) : (
                 <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
@@ -249,11 +249,11 @@ export const EchoFlipHUD: React.FC = () => {
           </button>
         </div>
 
-        {/* Action Controls & Mode Switchers (toggled on mobile by clicking logo) */}
+        {/* Action Controls & Mode Switchers (toggled on all devices by clicking logo) */}
         <div
           className={`${
-            isMobileTopBarOpen ? 'flex' : 'hidden md:flex'
-          } flex-wrap md:flex-nowrap items-center justify-between md:justify-end gap-2 border-t border-slate-100 md:border-t-0 pt-2 md:pt-0 transition-all`}
+            isTopBarOpen ? 'flex' : 'hidden'
+          } flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-2 border-t border-slate-100 sm:border-t-0 pt-2 sm:pt-0 transition-all`}
         >
           {/* Center Working Action Buttons */}
           <div className="flex items-center space-x-1 sm:space-x-2">
@@ -337,7 +337,7 @@ export const EchoFlipHUD: React.FC = () => {
       </header>
 
       {/* Top Floating Action Prompt Banner (Mobile & Desktop) */}
-      <div className={`pointer-events-auto fixed ${isMobileTopBarOpen ? 'top-28 sm:top-14' : 'top-14'} left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 bg-slate-900/90 text-white px-4 py-1.5 rounded-full border border-slate-700/80 shadow-2xl text-xs font-semibold backdrop-blur-md max-w-[92vw] truncate transition-all duration-300`}>
+      <div className={`pointer-events-auto fixed ${isTopBarOpen ? 'top-28 sm:top-14' : 'top-14'} left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 bg-slate-900/90 text-white px-4 py-1.5 rounded-full border border-slate-700/80 shadow-2xl text-xs font-semibold backdrop-blur-md max-w-[92vw] truncate transition-all duration-300`}>
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
         <span className="truncate">{getToolActionPrompt()}</span>
         {roomBlockStartPoint && (
