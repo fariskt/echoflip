@@ -263,7 +263,7 @@ export const EchoFlipHUD: React.FC = () => {
             title="3D Asset Normalizer Inspector"
           >
             <Wrench className="w-3.5 h-3.5 text-sky-600" />
-            <span>3D Asset Inspector</span>
+            <span>3D Inspector</span>
           </button>
 
           {/* Working Furniture Catalog Modal Trigger */}
@@ -273,7 +273,7 @@ export const EchoFlipHUD: React.FC = () => {
             title="Furniture Catalog & Gallery"
           >
             <Image className="w-3.5 h-3.5" />
-            <span>Furniture Gallery</span>
+            <span>Gallery</span>
           </button>
         </div>
 
@@ -299,7 +299,7 @@ export const EchoFlipHUD: React.FC = () => {
               title="Toggle Fullscreen Landscape View"
             >
               <Maximize className="w-3.5 h-3.5 text-blue-600" />
-              <span>Fullscreen ⛶</span>
+              <span className='hidden sm:inline'>Fullscreen ⛶</span>
             </button>
           </div>
 
