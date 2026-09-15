@@ -15,6 +15,9 @@ export const MinecraftTouchControls: React.FC = () => {
   const addMobileLookDelta = useRenovationStore((state) => state.addMobileLookDelta);
   const triggerMobileAction = useRenovationStore((state) => state.triggerMobileAction);
   const mobileMoveState = useRenovationStore((state) => state.mobileMoveState);
+  const roomBlockStartPoint = useRenovationStore((state) => state.roomBlockStartPoint);
+  const setRoomBlockStartPoint = useRenovationStore((state) => state.setRoomBlockStartPoint);
+  const showToast = useRenovationStore((state) => state.showToast);
 
   const [isTouchDevice, setIsTouchDevice] = useState<boolean>(false);
   const [joystickActive, setJoystickActive] = useState<boolean>(false);
@@ -209,17 +212,17 @@ export const MinecraftTouchControls: React.FC = () => {
         {/* Top Row: Action / Use Tool Button & Sprint Toggle */}
         <div className="flex items-center gap-2">
           {/* Mobile Cancel Corner Button (when dragging rect wall) */}
-          {useRenovationStore((state) => state.roomBlockStartPoint) && (
+          {roomBlockStartPoint && (
             <button
               onTouchStart={(e) => {
                 e.stopPropagation();
-                useRenovationStore.getState().setRoomBlockStartPoint(null);
-                useRenovationStore.getState().showToast('Rect Wall Creation Cancelled');
+                setRoomBlockStartPoint(null);
+                showToast('Wall Side Creation Cancelled');
               }}
               onMouseDown={(e) => {
                 e.stopPropagation();
-                useRenovationStore.getState().setRoomBlockStartPoint(null);
-                useRenovationStore.getState().showToast('Rect Wall Creation Cancelled');
+                setRoomBlockStartPoint(null);
+                showToast('Wall Side Creation Cancelled');
               }}
               className="w-11 h-11 rounded-xl bg-red-600/90 border border-red-400 active:scale-95 text-white font-bold flex flex-col items-center justify-center shadow-xl backdrop-blur-md animate-bounce"
             >
