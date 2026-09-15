@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRenovationStore } from '../../stores/renovationStore';
 import { validatePlacement } from '../utils/placementValidation';
+import { validateRoomBlockPlacement } from '../utils/roomBlockGenerator';
 
 interface FPSControllerProps {
   onPointerTargetChange?: (pos: THREE.Vector3 | null, normal: THREE.Vector3 | null, userData?: Record<string, any> | null) => void;
@@ -120,6 +121,52 @@ function findValidRaycastHit(intersects: THREE.Intersection[]): THREE.Intersecti
       const hitNormal = hit.face?.normal
         ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
         : new THREE.Vector3(0, 1, 0);
+
+      if (equippedTool === 'room_builder') {
+        if (!hit.point) return;
+        const store = useRenovationStore.getState();
+        const step = store.gridSnapEnabled ? store.gridSnapSize : 1.0;
+        const snappedPt: [number, number, number] = store.gridSnapEnabled
+          ? [Math.round(hit.point.x / step) * step, 0, Math.round(hit.point.z / step) * step]
+          : [Number(hit.point.x.toFixed(2)), 0, Number(hit.point.z.toFixed(2))];
+
+        const startPt = store.roomBlockStartPoint;
+        if (!startPt) {
+          store.setRoomBlockStartPoint(snappedPt);
+          store.showToast(`🎯 Point 1 set at (${snappedPt[0]}, ${snappedPt[2]}). Aim at Point 2 & click to create wall!`);
+        } else {
+          const distance = Math.hypot(snappedPt[0] - startPt[0], snappedPt[2] - startPt[2]);
+          if (distance < 0.2) {
+            store.showToast(`⚠️ Aim at 2nd point to set wall length (min 0.2m)`);
+            return;
+          }
+
+          const val = validateRoomBlockPlacement(startPt, snappedPt, store.activeProperty);
+          if (!val.valid) {
+            store.showToast(`❌ Cannot create wall: ${val.reason || 'Invalid location'}`);
+            return;
+          }
+
+          const activeRoomBlockType = store.activeRoomBlockType;
+          const roomBlockHeight = store.roomBlockHeight;
+          const height = activeRoomBlockType === 'floor' ? 0.15 : activeRoomBlockType === 'foundation' ? 0.5 : roomBlockHeight;
+
+          store.createRoomBlock({
+            type: activeRoomBlockType,
+            start: startPt,
+            end: snappedPt,
+            height,
+            wallThickness: store.roomBlockWallThickness,
+            wallPresetId: store.selectedWallBlock.id,
+            flooringMaterialId: store.selectedFlooring.id,
+            hasCeiling: store.includeCeiling,
+            color: store.selectedWallBlock.color
+          });
+
+          store.setRoomBlockStartPoint(null);
+        }
+        return;
+      }
 
       if (equippedTool === 'inspect') {
         if (userData.type === 'furniture' && userData.id) {
@@ -302,10 +349,16 @@ function findValidRaycastHit(intersects: THREE.Intersection[]): THREE.Intersecti
       }
 
       if (e.button === 2) {
-        // RIGHT CLICK: Glass ghost preview orientation fit check (rotates ghost 90° to check fit)
+        // RIGHT CLICK: Cancel rect wall corner selection if active, or rotate ghost 90°
         e.preventDefault();
-        rotatePlacementYaw(90);
-        useRenovationStore.getState().showToast('🔮 Glass Ghost Preview: Rotated 90° [Left-Click to place]');
+        const store = useRenovationStore.getState();
+        if (store.roomBlockStartPoint) {
+          store.setRoomBlockStartPoint(null);
+          store.showToast('Rect Wall Creation Cancelled');
+        } else {
+          rotatePlacementYaw(90);
+          useRenovationStore.getState().showToast('🔮 Glass Ghost Preview: Rotated 90° [Left-Click to place]');
+        }
       } else if (e.button === 0) {
         // ONLY LEFT CLICK PLACES THE ITEM / BLOCK INTO THE WORLD!
         executeToolAction();
@@ -494,11 +547,18 @@ function findValidRaycastHit(intersects: THREE.Intersection[]): THREE.Intersecti
           setContractMenuOpen(true);
           break;
         case 'KeyB':
+          setEquippedTool('wall_builder');
+          break;
         case 'KeyF':
-          setCatalogOpen(true);
+          setEquippedTool('room_builder');
           break;
         case 'Escape': {
           const store = useRenovationStore.getState();
+          if (store.roomBlockStartPoint) {
+            store.setRoomBlockStartPoint(null);
+            store.showToast('Rect Wall Creation Cancelled [ESC]');
+            break;
+          }
           const isAnyMenuOpen = store.isCatalogOpen || store.isPaintMenuOpen || store.isContractMenuOpen;
           const hasSelectedObject = !!store.selectedFurniture || !!store.selectedPlacedFurnitureId || !!store.selectedPlacedWallId;
 

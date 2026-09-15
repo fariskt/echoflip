@@ -483,6 +483,8 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
         </group>
       )}
 
+
+
       {/* Minecraft Center Crosshair Target Block Bounding Box Selection Indicator */}
       {pointerPosition && (
         <group ref={targetPointerRef} userData={{ isGhost: true }}>

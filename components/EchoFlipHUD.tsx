@@ -93,6 +93,9 @@ export const EchoFlipHUD: React.FC = () => {
   const isPaintMenuOpen = useRenovationStore((state) => state.isPaintMenuOpen);
   const setPaintMenuOpen = useRenovationStore((state) => state.setPaintMenuOpen);
 
+  const roomBlockStartPoint = useRenovationStore((state) => state.roomBlockStartPoint);
+  const setRoomBlockStartPoint = useRenovationStore((state) => state.setRoomBlockStartPoint);
+
   const toastMessage = useRenovationStore((state) => state.toastMessage);
   const gridSnapEnabled = useRenovationStore((state) => state.gridSnapEnabled);
   const gridSnapSize = useRenovationStore((state) => state.gridSnapSize);
@@ -166,28 +169,33 @@ export const EchoFlipHUD: React.FC = () => {
     } else if (toolId === 'paint_roller' || toolId === 'flooring' || toolId === 'wall_builder') {
       setPaintMenuOpen(true);
     }
+    if (window.innerWidth < 850) {
+      setIsLeftPanelOpen(false);
+    }
   };
 
   const getToolActionPrompt = () => {
     switch (equippedTool) {
       case 'inspect':
-        return 'Click object to inspect details';
+        return 'Tap object to inspect details';
       case 'paint_roller':
-        return `Click wall to paint with ${selectedPaintColor.name}`;
+        return `Tap wall to paint with ${selectedPaintColor.name}`;
       case 'flooring':
-        return `Click floor to install ${selectedFlooring.name}`;
+        return `Tap floor to install ${selectedFlooring.name}`;
       case 'hammer':
-        return 'Click wall block to demolish';
+        return 'Tap wall block to demolish';
       case 'wall_builder':
-        return `Click floor to build ${selectedWallBlock.name}`;
+        return `Aim crosshair & tap ACTION / Left-Click to place ${selectedWallBlock.name}`;
       case 'room_builder':
-        return 'Click 1st corner, drag area, click 2nd corner to create room/block!';
+        return roomBlockStartPoint
+          ? '🎯 Corner 1 set! Aim to resize & tap ACTION / Left-Click to finish'
+          : 'Aim crosshair at floor & tap ACTION / Left-Click to set 1st Corner!';
       case 'furniture':
         return selectedFurniture
-          ? `Click floor to place ${selectedFurniture.name} (R: Rotate, T: Tilt, G: Roll)`
+          ? `Tap floor to place ${selectedFurniture.name}`
           : 'Select item from catalog';
       default:
-        return 'Click to interact';
+        return 'Tap to interact';
     }
   };
 
@@ -274,6 +282,20 @@ export const EchoFlipHUD: React.FC = () => {
           </button>
         </div>
       </header>
+
+      {/* Top Floating Action Prompt Banner (Mobile & Desktop) */}
+      <div className="pointer-events-auto fixed top-14 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 bg-slate-900/90 text-white px-4 py-1.5 rounded-full border border-slate-700/80 shadow-2xl text-xs font-semibold backdrop-blur-md max-w-[92vw] truncate">
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+        <span className="truncate">{getToolActionPrompt()}</span>
+        {roomBlockStartPoint && (
+          <button
+            onClick={() => setRoomBlockStartPoint(null)}
+            className="ml-2 px-2 py-0.5 rounded bg-red-500/80 hover:bg-red-600 text-[10px] font-bold text-white shrink-0 shadow"
+          >
+            Cancel [ESC]
+          </button>
+        )}
+      </div>
 
       {/* Mobile Portrait Landscape Overlay */}
       {isPortrait && (
@@ -362,7 +384,7 @@ export const EchoFlipHUD: React.FC = () => {
                       className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${equippedTool === 'room_builder' ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'}`}
                     >
                       <Box className="w-6 h-6 text-slate-700 mb-1" />
-                      <span className="text-xs font-medium">Rect wall (F)</span>
+                      <span className="text-xs font-medium">Wall Side (F)</span>
                     </button>
                     <button
                       onClick={() => handleToolClick('hammer')}
@@ -534,6 +556,48 @@ export const EchoFlipHUD: React.FC = () => {
                     <button onClick={resetPlacementRotation} className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border">
                       Reset Rotation
                     </button>
+                  </div>
+                )}
+
+                {/* Rect Wall Options Panel */}
+                {equippedTool === 'room_builder' && (
+                  <div className="border-t border-slate-200 pt-3 space-y-2">
+                    <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Rect Wall Settings</h3>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-600 uppercase">Block Type</label>
+                      <div className="grid grid-cols-2 gap-1 text-xs font-semibold">
+                        {[
+                          { id: 'full_room', label: 'Full Room' },
+                          { id: 'empty_room', label: 'Perimeter' },
+                          { id: 'wall', label: 'Wall Block' },
+                          { id: 'floor', label: 'Floor Slab' },
+                          { id: 'foundation', label: 'Foundation' }
+                        ].map((typeItem) => (
+                          <button
+                            key={typeItem.id}
+                            onClick={() => setActiveRoomBlockType(typeItem.id as any)}
+                            className={`px-2 py-1 rounded border text-[11px] font-bold transition ${activeRoomBlockType === typeItem.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+                          >
+                            {typeItem.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-600 uppercase">Wall Height ({roomBlockHeight}m)</label>
+                      <div className="flex items-center space-x-1">
+                        {[2.0, 2.8, 3.5, 4.0].map((h) => (
+                          <button
+                            key={h}
+                            onClick={() => setRoomBlockHeight(h)}
+                            className={`flex-1 py-1 rounded border text-xs font-mono font-bold ${roomBlockHeight === h ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
+                          >
+                            {h}m
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

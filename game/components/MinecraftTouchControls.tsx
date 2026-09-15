@@ -208,6 +208,26 @@ export const MinecraftTouchControls: React.FC = () => {
       <div className="pointer-events-auto absolute bottom-4 right-4 z-40 flex flex-col items-end gap-2.5 touch-none">
         {/* Top Row: Action / Use Tool Button & Sprint Toggle */}
         <div className="flex items-center gap-2">
+          {/* Mobile Cancel Corner Button (when dragging rect wall) */}
+          {useRenovationStore((state) => state.roomBlockStartPoint) && (
+            <button
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                useRenovationStore.getState().setRoomBlockStartPoint(null);
+                useRenovationStore.getState().showToast('Rect Wall Creation Cancelled');
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                useRenovationStore.getState().setRoomBlockStartPoint(null);
+                useRenovationStore.getState().showToast('Rect Wall Creation Cancelled');
+              }}
+              className="w-11 h-11 rounded-xl bg-red-600/90 border border-red-400 active:scale-95 text-white font-bold flex flex-col items-center justify-center shadow-xl backdrop-blur-md animate-bounce"
+            >
+              <span className="text-[10px] font-black">✕</span>
+              <span className="text-[7px] font-bold text-red-100 uppercase">CANCEL</span>
+            </button>
+          )}
+
           {/* Sprint Toggle Button */}
           <button
             onTouchStart={(e) => {

@@ -113,6 +113,8 @@ export interface RenovationState {
   roomBlockHeight: number;
   roomBlockWallThickness: number;
   includeCeiling: boolean;
+  roomBlockStartPoint: [number, number, number] | null;
+  setRoomBlockStartPoint: (pt: [number, number, number] | null) => void;
 
   // Undo / Redo Stacks
   undoStack: RenovationProperty[];
@@ -228,7 +230,7 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
   toastMessage: null,
 
   setAppMode: (mode) => set({ appMode: mode }),
-  setEquippedTool: (tool) => set({ equippedTool: tool }),
+  setEquippedTool: (tool) => set({ equippedTool: tool, roomBlockStartPoint: null }),
   setSelectedPaintColor: (paint) => set({ selectedPaintColor: paint }),
   setSelectedFlooring: (flooring) => set({ selectedFlooring: flooring }),
   setSelectedFurniture: (item) => set({ selectedFurniture: item }),
@@ -240,10 +242,12 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
   selectedPlacedBlockId: null,
   setSelectedPlacedBlockId: (id) => set({ selectedPlacedBlockId: id, selectedPlacedFurnitureId: null, selectedPlacedWallId: null }),
 
-  activeRoomBlockType: 'full_room',
+  activeRoomBlockType: 'empty_room',
   roomBlockHeight: 2.8,
   roomBlockWallThickness: 0.2,
   includeCeiling: true,
+  roomBlockStartPoint: null,
+  setRoomBlockStartPoint: (pt) => set({ roomBlockStartPoint: pt }),
 
   undoStack: [],
   redoStack: [],

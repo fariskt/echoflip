@@ -4,7 +4,6 @@ import { useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { useRenovationStore } from '../../stores/renovationStore';
 import { validateRoomBlockPlacement } from '../utils/roomBlockGenerator';
-import type { RoomBlockType } from '../../types/renovation';
 
 interface RoomBlockCreationToolProps {
   pointerPosition?: THREE.Vector3 | null;
@@ -13,26 +12,23 @@ interface RoomBlockCreationToolProps {
 export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
   pointerPosition
 }) => {
-  const { raycaster, camera, scene } = useThree();
+  const { raycaster } = useThree();
 
   const equippedTool = useRenovationStore((state) => state.equippedTool);
   const activeRoomBlockType = useRenovationStore((state) => state.activeRoomBlockType);
   const roomBlockHeight = useRenovationStore((state) => state.roomBlockHeight);
   const setRoomBlockHeight = useRenovationStore((state) => state.setRoomBlockHeight);
   const roomBlockWallThickness = useRenovationStore((state) => state.roomBlockWallThickness);
-  const includeCeiling = useRenovationStore((state) => state.includeCeiling);
   const selectedWallBlock = useRenovationStore((state) => state.selectedWallBlock);
-  const selectedFlooring = useRenovationStore((state) => state.selectedFlooring);
   const activeProperty = useRenovationStore((state) => state.activeProperty);
-  const createRoomBlock = useRenovationStore((state) => state.createRoomBlock);
   const showToast = useRenovationStore((state) => state.showToast);
+
+  const roomBlockStartPoint = useRenovationStore((state) => state.roomBlockStartPoint);
+  const setRoomBlockStartPoint = useRenovationStore((state) => state.setRoomBlockStartPoint);
 
   const gridSnapEnabled = useRenovationStore((state) => state.gridSnapEnabled);
   const gridSnapSize = useRenovationStore((state) => state.gridSnapSize);
 
-  // Dragging state
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [startPoint, setStartPoint] = useState<[number, number, number] | null>(null);
   const [currentEndPoint, setCurrentEndPoint] = useState<[number, number, number]>([0, 0, 0]);
   const [isValid, setIsValid] = useState<boolean>(true);
   const [validationMessage, setValidationMessage] = useState<string>('');
@@ -54,10 +50,9 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
       if (e.key === 'Shift') isShiftPressed.current = true;
       if (e.key === 'Control') isCtrlPressed.current = true;
 
-      if (e.key === 'Escape' && isDragging) {
-        setIsDragging(false);
-        setStartPoint(null);
-        showToast('Room Creation Cancelled [ESC]');
+      if (e.key === 'Escape' && roomBlockStartPoint) {
+        setRoomBlockStartPoint(null);
+        showToast('Wall Side Creation Cancelled [ESC]');
       }
     };
 
@@ -72,7 +67,7 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isDragging, showToast]);
+  }, [roomBlockStartPoint, setRoomBlockStartPoint, showToast]);
 
   // Snap helper with Shift / Ctrl modifier check
   const snapPoint = (pt: THREE.Vector3): [number, number, number] => {
@@ -88,7 +83,7 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
     return [Number(x.toFixed(2)), 0, Number(z.toFixed(2))];
   };
 
-  // Live frame updates for preview geometry
+  // Live frame updates for 2-point 3D wall preview geometry
   useFrame(() => {
     if (equippedTool !== 'room_builder') return;
 
@@ -105,29 +100,34 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
     if (!hitPt) return;
 
     const snapped = snapPoint(hitPt);
+    setCurrentEndPoint(snapped);
 
-    if (isDragging && startPoint) {
-      const p1 = startPoint;
+    if (roomBlockStartPoint) {
+      const p1 = roomBlockStartPoint;
       const p2 = snapped;
 
-      const minX = Math.min(p1[0], p2[0]);
-      const maxX = Math.max(p1[0], p2[0]);
-      const minZ = Math.min(p1[2], p2[2]);
-      const maxZ = Math.max(p1[2], p2[2]);
+      const distance = Math.hypot(p2[0] - p1[0], p2[2] - p1[2]);
+      const angle = Math.atan2(p2[0] - p1[0], p2[2] - p1[2]);
 
-      const width = Math.max(0.1, maxX - minX);
-      const length = Math.max(0.1, maxZ - minZ);
-      const height = activeRoomBlockType === 'floor' ? 0.15 : activeRoomBlockType === 'foundation' ? 0.5 : roomBlockHeight;
-
-      const centerX = (minX + maxX) / 2;
-      const centerZ = (minZ + maxZ) / 2;
+      const midX = (p1[0] + p2[0]) / 2;
+      const midZ = (p1[2] + p2[2]) / 2;
+      const height = roomBlockHeight || 2.8;
       const centerY = p1[1] + height / 2;
+      const thickness = roomBlockWallThickness || 0.2;
 
       // Update preview mesh
       if (previewBoxMeshRef.current) {
-        previewBoxMeshRef.current.position.set(centerX, centerY, centerZ);
-        previewBoxMeshRef.current.scale.set(width, height, length);
+        previewBoxMeshRef.current.position.set(midX, centerY, midZ);
+        previewBoxMeshRef.current.rotation.set(0, angle, 0);
+        previewBoxMeshRef.current.scale.set(thickness, height, Math.max(0.1, distance));
         previewBoxMeshRef.current.visible = true;
+      }
+
+      if (previewWireframeRef.current) {
+        previewWireframeRef.current.position.set(midX, centerY, midZ);
+        previewWireframeRef.current.rotation.set(0, angle, 0);
+        previewWireframeRef.current.scale.set(thickness * 1.002, height * 1.002, Math.max(0.1, distance) * 1.002);
+        previewWireframeRef.current.visible = true;
       }
 
       if (startMarkerRef.current) {
@@ -139,7 +139,7 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
       const val = validateRoomBlockPlacement(p1, p2, activeProperty);
       if (val.valid !== isValid) setIsValid(val.valid);
       setValidationMessage(val.reason || '');
-      setDimText(`${width.toFixed(1)}m × ${length.toFixed(1)}m (H: ${height.toFixed(1)}m)`);
+      setDimText(`${distance.toFixed(1)}m Wall Side (H: ${height.toFixed(1)}m)`);
 
       const color = val.valid ? (selectedWallBlock.color || '#38bdf8') : '#ef4444';
       if (previewBoxMatRef.current) {
@@ -147,6 +147,7 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
       }
     } else {
       if (previewBoxMeshRef.current) previewBoxMeshRef.current.visible = false;
+      if (previewWireframeRef.current) previewWireframeRef.current.visible = false;
       if (startMarkerRef.current) {
         startMarkerRef.current.position.set(snapped[0], 0.05, snapped[2]);
         startMarkerRef.current.visible = true;
@@ -156,47 +157,8 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
 
   if (equippedTool !== 'room_builder') return null;
 
-  const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
-    if (e.button !== 0) return; // Only left-click (button 0) places room blocks
-    e.stopPropagation();
-
-    const pt = snapPoint(e.point);
-
-    if (!isDragging) {
-      // Step 1: Set start corner
-      setStartPoint(pt);
-      setCurrentEndPoint(pt);
-      setIsDragging(true);
-      showToast(`🎯 Corner 1 set at (${pt[0]}, ${pt[2]}). Move mouse to resize, click again to finish.`);
-    } else if (startPoint) {
-      // Step 2: Confirm opposite corner
-      const endPt = pt;
-      const val = validateRoomBlockPlacement(startPoint, endPt, activeProperty);
-
-      if (!val.valid) {
-        showToast(`❌ Cannot create block: ${val.reason || 'Invalid location'}`);
-        return;
-      }
-
-      createRoomBlock({
-        type: activeRoomBlockType,
-        start: startPoint,
-        end: endPt,
-        height: activeRoomBlockType === 'floor' ? 0.15 : activeRoomBlockType === 'foundation' ? 0.5 : roomBlockHeight,
-        wallThickness: roomBlockWallThickness,
-        wallPresetId: selectedWallBlock.id,
-        flooringMaterialId: selectedFlooring.id,
-        hasCeiling: includeCeiling,
-        color: selectedWallBlock.color
-      });
-
-      setIsDragging(false);
-      setStartPoint(null);
-    }
-  };
-
   const handleWheel = (e: ThreeEvent<WheelEvent>) => {
-    if (isDragging) {
+    if (roomBlockStartPoint) {
       e.stopPropagation();
       const delta = e.deltaY > 0 ? -0.2 : 0.2;
       const newH = Math.max(0.5, Math.min(10, roomBlockHeight + delta));
@@ -205,21 +167,15 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
   };
 
   return (
-    <group onPointerDown={handlePointerDown} onWheel={handleWheel}>
-      {/* Ground Click Target Receiver */}
-      <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
-        <planeGeometry args={[100, 100]} />
-        <meshBasicMaterial />
-      </mesh>
-
+    <group onWheel={handleWheel} userData={{ isGhost: true }}>
       {/* Start Corner Marker */}
-      <mesh ref={startMarkerRef} visible={false}>
+      <mesh ref={startMarkerRef} visible={false} userData={{ isGhost: true }}>
         <cylinderGeometry args={[0.2, 0.2, 0.1, 16]} />
         <meshBasicMaterial color="#38bdf8" transparent opacity={0.6} />
       </mesh>
 
       {/* Dynamic 3D Preview Box */}
-      <mesh ref={previewBoxMeshRef} visible={false}>
+      <mesh ref={previewBoxMeshRef} visible={false} userData={{ isGhost: true }}>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial
           ref={previewBoxMatRef}
@@ -231,21 +187,25 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
         />
       </mesh>
 
+      {/* Wireframe Outline around Preview Box */}
+      <lineSegments ref={previewWireframeRef} visible={false} userData={{ isGhost: true }}>
+        <edgesGeometry args={[new THREE.BoxGeometry(1, 1, 1)]} />
+        <lineBasicMaterial color={isValid ? '#0f172a' : '#ef4444'} linewidth={2} />
+      </lineSegments>
+
       {/* Live Dimension Overlay HTML Badge */}
-      {isDragging && startPoint && (
+      {roomBlockStartPoint && (
         <Html
           position={[
-            (startPoint[0] + currentEndPoint[0]) / 2,
+            (roomBlockStartPoint[0] + currentEndPoint[0]) / 2,
             roomBlockHeight + 0.6,
-            (startPoint[2] + currentEndPoint[2]) / 2
+            (roomBlockStartPoint[2] + currentEndPoint[2]) / 2
           ]}
           center
         >
           <div className="pointer-events-none flex flex-col items-center bg-slate-950/90 text-white text-xs px-3 py-1.5 rounded-xl border border-sky-500/40 shadow-2xl backdrop-blur-md">
             <span className="font-bold text-sky-400">{dimText}</span>
-            <span className="text-[10px] text-slate-300">
-              {activeRoomBlockType.replace('_', ' ').toUpperCase()} MODE
-            </span>
+            <span className="text-[10px] text-slate-300">WALL SIDE 2-POINT MODE</span>
             {!isValid && (
               <span className="text-[10px] text-red-400 font-semibold mt-0.5">{validationMessage}</span>
             )}
