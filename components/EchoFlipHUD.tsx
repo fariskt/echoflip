@@ -222,122 +222,133 @@ export const EchoFlipHUD: React.FC = () => {
       {/* ========================================================================= */}
       {/* 1. CLEAN TOP HEADER TOOLBAR */}
       {/* ========================================================================= */}
-      <header className="pointer-events-auto bg-white/95 text-slate-800 shadow-sm border-b border-slate-200 px-3 py-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 backdrop-blur-md z-40 transition-all duration-300">
+      <header
+        className={`pointer-events-auto transition-all duration-300 z-40 ${
+          isTopBarOpen
+            ? 'bg-white/95 text-slate-800 shadow-sm border-b border-slate-200 px-3 py-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 backdrop-blur-md'
+            : 'bg-transparent border-none shadow-none p-2.5 flex items-center justify-start'
+        }`}
+      >
         {/* Left Brand Logo - Clickable to toggle top bar on all devices (PC & Mobile) */}
         <div className="flex items-center justify-between sm:justify-start">
           <button
             type="button"
             onClick={() => setIsTopBarOpen((prev) => !prev)}
-            className="flex items-center space-x-2 cursor-pointer focus:outline-none select-none group text-left"
+            className={`flex items-center space-x-2 cursor-pointer focus:outline-none select-none group text-left transition-all ${
+              !isTopBarOpen
+                ? 'bg-white/95 hover:bg-white text-slate-900 px-3 py-1.5 rounded-full border border-slate-200/90 shadow-lg backdrop-blur-md'
+                : ''
+            }`}
             title="Click logo to toggle top toolbar"
           >
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center font-black text-sm text-white shadow-md group-hover:scale-105 transition-transform">
               EF
             </div>
-            <div className="flex items-center space-x-1">
-              <span className="font-extrabold text-sm tracking-tight text-slate-900">ECHOFlIP</span>
-              <span className="text-[10px] text-blue-600 font-bold uppercase bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">Studio</span>
-            </div>
-            <div className="flex items-center space-x-1 text-slate-500 bg-slate-100 group-hover:bg-slate-200 px-2 py-1 rounded-lg text-[10px] font-bold border border-slate-200 transition ml-2">
-              <span>{isTopBarOpen ? 'Hide Bar' : 'Show Bar'}</span>
-              {isTopBarOpen ? (
-                <ChevronUp className="w-3.5 h-3.5 text-blue-600" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
-              )}
+            <span className="font-extrabold text-sm tracking-tight text-slate-900">ECHOFlIP</span>
+            {/* Smooth UI Toggle Switch */}
+            <div className="flex items-center ml-2">
+              <div
+                className={`relative w-8 h-4.5 flex items-center rounded-full p-0.5 transition-colors duration-200 ${
+                  isTopBarOpen ? 'bg-blue-600' : 'bg-slate-300'
+                }`}
+              >
+                <div
+                  className={`w-3.5 h-3.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                    isTopBarOpen ? 'translate-x-3.5' : 'translate-x-0'
+                  }`}
+                />
+              </div>
             </div>
           </button>
         </div>
 
         {/* Action Controls & Mode Switchers (toggled on all devices by clicking logo) */}
-        <div
-          className={`${
-            isTopBarOpen ? 'flex' : 'hidden'
-          } flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-2 border-t border-slate-100 sm:border-t-0 pt-2 sm:pt-0 transition-all`}
-        >
-          {/* Center Working Action Buttons */}
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            <button
-              onClick={() => undo()}
-              disabled={undoStack.length === 0}
-              className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-700 font-semibold text-xs transition"
-              title="Undo (Ctrl+Z)"
-            >
-              <Undo className="w-3.5 h-3.5 text-slate-600" />
-              <span>Undo</span>
-            </button>
-            <button
-              onClick={() => redo()}
-              disabled={redoStack.length === 0}
-              className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-700 font-semibold text-xs transition"
-              title="Redo (Ctrl+Y)"
-            >
-              <Redo className="w-3.5 h-3.5 text-slate-600" />
-              <span>Redo</span>
-            </button>
-
-            <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block" />
-
-            {/* Working 3D Inspector Modal Trigger */}
-            <button
-              onClick={() => setIsAssetDebugOpen(true)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 font-semibold text-xs transition"
-              title="3D Asset Normalizer Inspector"
-            >
-              <Wrench className="w-3.5 h-3.5 text-sky-600" />
-              <span>3D Inspector</span>
-            </button>
-
-            {/* Working Furniture Catalog Modal Trigger */}
-            <button
-              onClick={() => setCatalogOpen(true)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow font-semibold text-xs transition"
-              title="Furniture Catalog & Gallery"
-            >
-              <Image className="w-3.5 h-3.5" />
-              <span>Gallery</span>
-            </button>
-          </div>
-
-          {/* Right Working Mode Switcher */}
-          <div className="flex items-center space-x-2">
-            {/* Toggle 2D Schematic Map Button */}
-            <button
-              onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border font-semibold text-xs transition ${isRightPanelOpen
-                ? 'bg-blue-600 text-white border-blue-600 shadow'
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-                }`}
-              title="Toggle 2D Drone Schematic Map & Inspector"
-            >
-              <Map className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">2D Map</span>
-            </button>
-
-            <div className="flex items-center space-x-2">
+        {isTopBarOpen && (
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-2 border-t border-slate-100 sm:border-t-0 pt-2 sm:pt-0 transition-all">
+            {/* Center Working Action Buttons */}
+            <div className="flex items-center space-x-1 sm:space-x-2">
               <button
-                onClick={handleEnterLandscapeFullscreen}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-blue-600 font-bold text-xs border border-slate-300 transition"
-                title="Toggle Fullscreen Landscape View"
+                onClick={() => undo()}
+                disabled={undoStack.length === 0}
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-700 font-semibold text-xs transition"
+                title="Undo (Ctrl+Z)"
               >
-                <Maximize className="w-3.5 h-3.5 text-blue-600" />
-                <span className='hidden sm:inline'>Fullscreen ⛶</span>
+                <Undo className="w-3.5 h-3.5 text-slate-600" />
+                <span>Undo</span>
+              </button>
+              <button
+                onClick={() => redo()}
+                disabled={redoStack.length === 0}
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-700 font-semibold text-xs transition"
+                title="Redo (Ctrl+Y)"
+              >
+                <Redo className="w-3.5 h-3.5 text-slate-600" />
+                <span>Redo</span>
+              </button>
+
+              <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block" />
+
+              {/* Working 3D Inspector Modal Trigger */}
+              <button
+                onClick={() => setIsAssetDebugOpen(true)}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 font-semibold text-xs transition"
+                title="3D Asset Normalizer Inspector"
+              >
+                <Wrench className="w-3.5 h-3.5 text-sky-600" />
+                <span>Inspector</span>
+              </button>
+
+              {/* Working Furniture Catalog Modal Trigger */}
+              <button
+                onClick={() => setCatalogOpen(true)}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow font-semibold text-xs transition"
+                title="Furniture Catalog & Gallery"
+              >
+                <Image className="w-3.5 h-3.5" />
+                <span>Gallery</span>
               </button>
             </div>
 
-            <button
-              onClick={() => setAppMode(appMode === 'renovation' ? 'editor' : 'renovation')}
-              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-300 transition"
-            >
-              <Edit3 className="w-3.5 h-3.5 text-blue-600" />
-              <span>{appMode === 'editor' ? 'Game View' : '3D Studio'}</span>
-            </button>
+            {/* Right Working Mode Switcher */}
+            <div className="flex items-center space-x-2">
+              {/* Toggle 2D Schematic Map Button */}
+              <button
+                onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border font-semibold text-xs transition ${isRightPanelOpen
+                  ? 'bg-blue-600 text-white border-blue-600 shadow'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                  }`}
+                title="Toggle 2D Drone Schematic Map & Inspector"
+              >
+                <Map className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">2D Map</span>
+              </button>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleEnterLandscapeFullscreen}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-blue-600 font-bold text-xs border border-slate-300 transition"
+                  title="Toggle Fullscreen Landscape View"
+                >
+                  <Maximize className="w-3.5 h-3.5 text-blue-600" />
+                  <span className='hidden sm:inline'>Fullscreen ⛶</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => setAppMode(appMode === 'renovation' ? 'editor' : 'renovation')}
+                className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-300 transition"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                <span>{appMode === 'editor' ? 'Game View' : '3D Studio'}</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       {/* Top Floating Action Prompt Banner (Mobile & Desktop) */}
-      <div className={`pointer-events-auto fixed ${isTopBarOpen ? 'top-28 sm:top-14' : 'top-14'} left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 bg-slate-900/90 text-white px-4 py-1.5 rounded-full border border-slate-700/80 shadow-2xl text-xs font-semibold backdrop-blur-md max-w-[92vw] truncate transition-all duration-300`}>
+      <div className={`pointer-events-auto fixed ${isTopBarOpen ? 'top-28 sm:top-14' : 'top-3.5'} left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 bg-slate-900/90 text-white px-4 py-1.5 rounded-full border border-slate-700/80 shadow-2xl text-xs font-semibold backdrop-blur-md max-w-[92vw] truncate transition-all duration-300`}>
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
         <span className="truncate">{getToolActionPrompt()}</span>
         {roomBlockStartPoint && (
