@@ -282,11 +282,10 @@ export const EchoFlipHUD: React.FC = () => {
           {/* Toggle 2D Schematic Map Button */}
           <button
             onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border font-semibold text-xs transition ${
-              isRightPanelOpen
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border font-semibold text-xs transition ${isRightPanelOpen
                 ? 'bg-blue-600 text-white border-blue-600 shadow'
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-            }`}
+              }`}
             title="Toggle 2D Drone Schematic Map & Inspector"
           >
             <Map className="w-3.5 h-3.5" />
@@ -661,7 +660,7 @@ export const EchoFlipHUD: React.FC = () => {
       {/* ========================================================================= */}
       {/* 3. CLEAN BOTTOM BAR VIEWPORT CONTROLS */}
       {/* ========================================================================= */}
-      <footer className="hidden sm:flex pointer-events-auto bg-white/95 text-slate-800 shadow-sm border-t border-slate-200 px-4 py-2 items-center justify-between backdrop-blur-md z-40">
+      <footer className="hidden md:flex pointer-events-auto bg-white/95 text-slate-800 shadow-sm border-t border-slate-200 px-4 py-2 items-center justify-between backdrop-blur-md z-40">
         <div className="flex items-center space-x-2 text-xs text-slate-600 font-semibold">
           <span>60m × 60m Base Plot</span>
         </div>
