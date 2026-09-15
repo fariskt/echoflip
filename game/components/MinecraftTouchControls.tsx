@@ -171,7 +171,7 @@ export const MinecraftTouchControls: React.FC = () => {
       />
 
       {/* --- MINECRAFT LEFT SIDE D-PAD / JOYSTICK ZONE --- */}
-      <div className="pointer-events-auto absolute bottom-4 left-4 z-40 flex items-center justify-center">
+      <div className="pointer-events-auto absolute bottom-4 left-16 sm:left-20 z-40 flex items-center justify-center">
         <div
           ref={joystickBaseRef}
           onTouchStart={handleJoystickTouchStart}

@@ -346,35 +346,47 @@ export const EchoFlipHUD: React.FC = () => {
         {/* ----------------------------------------------------------------------- */}
         <div className="pointer-events-auto flex h-full z-30">
           {/* Vertical Icon Rail */}
-          <div className="w-12 bg-white border-r border-slate-200 shadow-sm flex flex-col items-center py-3 space-y-4 text-slate-600">
-            <button
-              onClick={() => { setActiveTab('draw'); setIsLeftPanelOpen(true); }}
-              className={`p-2 rounded-xl transition ${activeTab === 'draw' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
-              title="Floor Plan & Building Tools"
-            >
-              <Box className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => { setActiveTab('doors'); setIsLeftPanelOpen(true); }}
-              className={`p-2 rounded-xl transition ${activeTab === 'doors' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
-              title="Doors & Windows"
-            >
-              <DoorOpen className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => { setActiveTab('furniture'); setIsLeftPanelOpen(true); setCatalogOpen(true); }}
-              className={`p-2 rounded-xl transition ${activeTab === 'furniture' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
-              title="Furniture & Decor Library"
-            >
-              <Armchair className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => { setActiveTab('finish'); setIsLeftPanelOpen(true); setPaintMenuOpen(true); }}
-              className={`p-2 rounded-xl transition ${activeTab === 'finish' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
-              title="Finishes, Paint & Flooring"
-            >
-              <Palette className="w-5 h-5" />
-            </button>
+          <div className="w-12 bg-white border-r border-slate-200 shadow-sm flex flex-col justify-between items-center py-3 text-slate-600">
+            <div className="flex flex-col items-center space-y-4">
+              <button
+                onClick={() => { setActiveTab('draw'); setIsLeftPanelOpen(true); }}
+                className={`p-2 rounded-xl transition ${activeTab === 'draw' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
+                title="Floor Plan & Building Tools"
+              >
+                <Box className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => { setActiveTab('doors'); setIsLeftPanelOpen(true); }}
+                className={`p-2 rounded-xl transition ${activeTab === 'doors' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
+                title="Doors & Windows"
+              >
+                <DoorOpen className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => { setActiveTab('furniture'); setIsLeftPanelOpen(true); setCatalogOpen(true); }}
+                className={`p-2 rounded-xl transition ${activeTab === 'furniture' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
+                title="Furniture & Decor Library"
+              >
+                <Armchair className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => { setActiveTab('finish'); setIsLeftPanelOpen(true); setPaintMenuOpen(true); }}
+                className={`p-2 rounded-xl transition ${activeTab === 'finish' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
+                title="Finishes, Paint & Flooring"
+              >
+                <Palette className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <button
+                onClick={handleEnterLandscapeFullscreen}
+                className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-600 transition"
+                title="Toggle Fullscreen Landscape View"
+              >
+                <Maximize className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Expandable Left Drawer Panel */}
@@ -649,7 +661,7 @@ export const EchoFlipHUD: React.FC = () => {
       {/* ========================================================================= */}
       {/* 3. CLEAN BOTTOM BAR VIEWPORT CONTROLS */}
       {/* ========================================================================= */}
-      <footer className="pointer-events-auto bg-white/95 text-slate-800 shadow-sm border-t border-slate-200 px-4 py-2 flex items-center justify-between backdrop-blur-md z-40">
+      <footer className="hidden sm:flex pointer-events-auto bg-white/95 text-slate-800 shadow-sm border-t border-slate-200 px-4 py-2 items-center justify-between backdrop-blur-md z-40">
         <div className="flex items-center space-x-2 text-xs text-slate-600 font-semibold">
           <span>60m × 60m Base Plot</span>
         </div>
