@@ -735,6 +735,16 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
 
     const snappedPos = snapToGrid(position);
 
+    // Check if cell is already occupied
+    const cellOccupied = activeProperty.furniture.some((f) => {
+      return Math.abs(f.position[0] - snappedPos[0]) < 0.3 && Math.abs(f.position[2] - snappedPos[2]) < 0.3 && Math.abs(f.position[1] - snappedPos[1]) < 0.3;
+    });
+
+    if (cellOccupied) {
+      showToast('⚠️ Target space already occupied');
+      return false;
+    }
+
     const newFurnitureObj: FurnitureObject = {
       id: 'furn_' + Math.random().toString(36).substring(2, 9),
       catalogId: item.id,
@@ -794,8 +804,22 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
 
     const snappedPos = snapToGrid(position);
     const gridX = snappedPos[0];
-    const gridY = Math.max(0, Math.floor(position[1] + 0.01));
+    const gridY = Math.max(0, Math.round(position[1] * 100) / 100);
     const gridZ = snappedPos[2];
+
+    // Check if block already exists at this exact grid cell
+    const blockExists = activeProperty.walls.some((w) => {
+      if (w.isDemolished) return false;
+      const wMidX = (w.startPoint[0] + w.endPoint[0]) / 2;
+      const wMidZ = (w.startPoint[2] + w.endPoint[2]) / 2;
+      const wY = w.startPoint[1] ?? 0;
+      return Math.abs(wMidX - gridX) < 0.2 && Math.abs(wMidZ - gridZ) < 0.2 && Math.abs(wY - gridY) < 0.2;
+    });
+
+    if (blockExists) {
+      showToast('⚠️ Block already exists at this location');
+      return;
+    }
 
     const newWall: WallSegment = {
       id: 'wall_block_' + Math.random().toString(36).substring(2, 9),

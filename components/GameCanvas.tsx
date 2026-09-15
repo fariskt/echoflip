@@ -31,6 +31,18 @@ function EchoFlipScene() {
   const appMode = useRenovationStore((state) => state.appMode);
   const equippedTool = useRenovationStore((state) => state.equippedTool);
 
+  const prevPosRef = React.useRef<THREE.Vector3 | null>(null);
+
+  const handlePointerTargetChange = React.useCallback((pos: THREE.Vector3 | null, norm: THREE.Vector3 | null, userData?: Record<string, any> | null) => {
+    if (!pos && !prevPosRef.current) return;
+    if (pos && prevPosRef.current && pos.distanceToSquared(prevPosRef.current) < 0.0001) return;
+
+    prevPosRef.current = pos ? pos.clone() : null;
+    setPointerPos(pos);
+    setPointerNorm(norm);
+    setPointerUserData(userData || null);
+  }, []);
+
   return (
     <>
       <PerspectiveCamera makeDefault fov={65} position={appMode === 'editor' ? [12, 12, 18] : [0, 1.6, 6]} />
@@ -41,11 +53,7 @@ function EchoFlipScene() {
         </>
       ) : (
         <FirstPersonRenovationController
-          onPointerTargetChange={(pos, norm, userData) => {
-            setPointerPos(pos);
-            setPointerNorm(norm);
-            setPointerUserData(userData || null);
-          }}
+          onPointerTargetChange={handlePointerTargetChange}
         />
       )}
 
@@ -135,7 +143,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         propertyId: 'starter_house',
         isCompleted: false,
         tasks: [
-          { id: 'task_scrub_stains', description: 'Scrub dirt stains off walls and floors', type: 'scrub_stains', targetCount: 0, currentCount: 0, reward: 400, isCompleted: true },
+          { id: 'task_scrub_stains', description: 'Scrub dirt stains off walls and floors', type: 'scrub_stains', targetCount: 7, currentCount: 0, reward: 400, isCompleted: false },
           { id: 'task_paint_walls', description: 'Paint walls with fresh coat of paint', type: 'paint_walls', targetCount: 3, currentCount: 0, reward: 600, isCompleted: false },
           { id: 'task_change_flooring', description: 'Install new flooring (Wood/Tile/Carpet)', type: 'change_flooring', targetCount: 1, currentCount: 0, reward: 800, isCompleted: false },
           { id: 'task_repair_fixtures', description: 'Repair broken lighting and plumbing fixtures', type: 'repair_fixtures', targetCount: 2, currentCount: 0, reward: 500, isCompleted: false },
@@ -178,9 +186,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   }, [initialTerrainId, loadContract, loadProperty, mode, setLoaded, setLoadingProgress, setObjective, setTerrain]);
 
+  const equippedTool = useRenovationStore((state) => state.equippedTool);
+
   return (
-    <div className="relative w-full h-full touch-none overflow-hidden select-none">
-      <Canvas shadows dpr={[1, 2]} className="w-full h-full block cursor-pointer touch-none">
+    <div className={`relative w-full h-full touch-none overflow-hidden select-none ${equippedTool !== 'inspect' ? 'cursor-none' : 'cursor-none'}`}>
+      <Canvas shadows dpr={[1, 2]} className="w-full h-full block cursor-none touch-none">
         <Suspense fallback={null}>
           <EchoFlipScene />
         </Suspense>

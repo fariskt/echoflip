@@ -53,7 +53,7 @@ function InnerGLTFModel({
   userData = {},
   isSelected = false,
   isGhost = false,
-  ghostColor = '#22c55e',
+  ghostColor = '',
   onClick
 }: GLTFModelRendererProps) {
   const { scene } = useGLTF(modelPath);
@@ -79,12 +79,31 @@ function InnerGLTFModel({
         }
 
         if (isGhost) {
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(ghostColor),
-            transparent: true,
-            opacity: 0.65,
-            roughness: 0.5
-          });
+          if (ghostColor === '#ef4444') {
+            // Invalid placement indicator (soft red transparent)
+            mesh.material = new THREE.MeshStandardMaterial({
+              color: new THREE.Color('#ef4444'),
+              transparent: true,
+              opacity: 0.65,
+              roughness: 0.5
+            });
+          } else {
+            // Valid placement preview: Preserve original textures & materials with clean Minecraft-style translucency
+            const origMat = mesh.material;
+            if (Array.isArray(origMat)) {
+              mesh.material = origMat.map((m) => {
+                const cloned = m.clone();
+                cloned.transparent = true;
+                cloned.opacity = 0.75;
+                return cloned;
+              });
+            } else if (origMat) {
+              const cloned = origMat.clone();
+              cloned.transparent = true;
+              cloned.opacity = 0.75;
+              mesh.material = cloned;
+            }
+          }
         }
       }
     });
@@ -134,7 +153,7 @@ export const GLTFModelRenderer: React.FC<GLTFModelRendererProps> = (props) => {
     <group position={props.position} rotation={props.rotation} scale={props.scale} userData={props.userData} onClick={props.onClick}>
       <mesh castShadow receiveShadow position={[0, 0.5, 0]}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color={props.isSelected ? '#38bdf8' : '#10b981'} roughness={0.5} />
+        <meshStandardMaterial color={props.isSelected ? '#38bdf8' : '#94a3b8'} transparent={props.isGhost} opacity={props.isGhost ? 0.75 : 1} roughness={0.5} />
       </mesh>
     </group>
   );

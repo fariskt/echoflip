@@ -2,7 +2,6 @@
 
 import React from 'react';
 import {
-  Hand,
   Sparkles,
   Paintbrush,
   Grid,
@@ -14,17 +13,15 @@ import {
   Redo,
   Copy,
   Trash2,
-  CheckCircle2,
   X,
   Edit3,
-  Coins,
   Palette,
-  RotateCw,
-  ArrowUp,
-  ArrowDown,
-  Layers,
   Maximize,
-  Smartphone
+  Smartphone,
+  Wrench,
+  Image,
+  DoorOpen,
+  AppWindow
 } from 'lucide-react';
 import {
   useRenovationStore,
@@ -36,19 +33,20 @@ import {
 import type { RenovationTool, RoomBlockType } from '../types/renovation';
 import { MinecraftTouchControls } from '../game/components/MinecraftTouchControls';
 import { AssetDebugModal } from './AssetDebugModal';
-import { Ruler } from 'lucide-react';
+import { SchematicMap } from './SchematicMap';
 
 export const EchoFlipHUD: React.FC = () => {
   const [isAssetDebugOpen, setIsAssetDebugOpen] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<'draw' | 'finish' | 'furniture' | 'doors'>('draw');
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = React.useState<boolean>(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = React.useState<boolean>(true);
+
   const appMode = useRenovationStore((state) => state.appMode);
   const setAppMode = useRenovationStore((state) => state.setAppMode);
-  const money = useRenovationStore((state) => state.money);
   const equippedTool = useRenovationStore((state) => state.equippedTool);
   const setEquippedTool = useRenovationStore((state) => state.setEquippedTool);
 
   const activeProperty = useRenovationStore((state) => state.activeProperty);
-  const activeContract = useRenovationStore((state) => state.activeContract);
-
   const selectedPaintColor = useRenovationStore((state) => state.selectedPaintColor);
   const setSelectedPaintColor = useRenovationStore((state) => state.setSelectedPaintColor);
 
@@ -78,15 +76,12 @@ export const EchoFlipHUD: React.FC = () => {
   const setRoomBlockHeight = useRenovationStore((state) => state.setRoomBlockHeight);
   const roomBlockWallThickness = useRenovationStore((state) => state.roomBlockWallThickness);
   const setRoomBlockWallThickness = useRenovationStore((state) => state.setRoomBlockWallThickness);
-  const includeCeiling = useRenovationStore((state) => state.includeCeiling);
-  const setIncludeCeiling = useRenovationStore((state) => state.setIncludeCeiling);
 
   const undo = useRenovationStore((state) => state.undo);
   const redo = useRenovationStore((state) => state.redo);
   const undoStack = useRenovationStore((state) => state.undoStack);
   const redoStack = useRenovationStore((state) => state.redoStack);
 
-  const placementRotation = useRenovationStore((state) => state.placementRotation);
   const rotatePlacementYaw = useRenovationStore((state) => state.rotatePlacementYaw);
   const tiltPlacementPitch = useRenovationStore((state) => state.tiltPlacementPitch);
   const rollPlacementRoll = useRenovationStore((state) => state.rollPlacementRoll);
@@ -98,21 +93,13 @@ export const EchoFlipHUD: React.FC = () => {
   const isPaintMenuOpen = useRenovationStore((state) => state.isPaintMenuOpen);
   const setPaintMenuOpen = useRenovationStore((state) => state.setPaintMenuOpen);
 
-  const isContractMenuOpen = useRenovationStore((state) => state.isContractMenuOpen);
-  const setContractMenuOpen = useRenovationStore((state) => state.setContractMenuOpen);
-
   const toastMessage = useRenovationStore((state) => state.toastMessage);
-  const completeContract = useRenovationStore((state) => state.completeContract);
-
   const gridSnapEnabled = useRenovationStore((state) => state.gridSnapEnabled);
   const gridSnapSize = useRenovationStore((state) => state.gridSnapSize);
   const toggleGridSnap = useRenovationStore((state) => state.toggleGridSnap);
   const setGridSnapSize = useRenovationStore((state) => state.setGridSnapSize);
-  const setMobileMove = useRenovationStore((state) => state.setMobileMove);
 
-  const [isMobilePanelCollapsed, setIsMobilePanelCollapsed] = React.useState<boolean>(false);
   const [isPortrait, setIsPortrait] = React.useState<boolean>(false);
-  const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
   const [selectedCatalogCategory, setSelectedCatalogCategory] = React.useState<string>('all');
 
   const handleEnterLandscapeFullscreen = async () => {
@@ -120,31 +107,28 @@ export const EchoFlipHUD: React.FC = () => {
       if (document.documentElement.requestFullscreen) {
         await document.documentElement.requestFullscreen();
       }
-    } catch {}
+    } catch { }
 
     try {
       if (screen.orientation && (screen.orientation as any).lock) {
         await (screen.orientation as any).lock('landscape');
       }
-    } catch {}
+    } catch { }
   };
 
   React.useEffect(() => {
     const checkOrientation = () => {
       const portrait = window.innerHeight > window.innerWidth && window.innerWidth < 850;
       setIsPortrait(portrait);
-      setIsFullscreen(!!document.fullscreenElement);
     };
 
     checkOrientation();
     window.addEventListener('resize', checkOrientation);
     window.addEventListener('orientationchange', checkOrientation);
-    document.addEventListener('fullscreenchange', checkOrientation);
 
     return () => {
       window.removeEventListener('resize', checkOrientation);
       window.removeEventListener('orientationchange', checkOrientation);
-      document.removeEventListener('fullscreenchange', checkOrientation);
     };
   }, []);
 
@@ -154,11 +138,8 @@ export const EchoFlipHUD: React.FC = () => {
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
-        if (e.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
+        if (e.shiftKey) redo();
+        else undo();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         redo();
@@ -171,25 +152,12 @@ export const EchoFlipHUD: React.FC = () => {
           setEquippedTool('inspect');
           useRenovationStore.getState().showToast('Selection Cancelled [ESC]');
         }
-      } else if (e.key === '8') {
-        setEquippedTool('room_builder');
       }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [equippedTool, selectedFurniture, selectedPlacedFurnitureId, selectedPlacedWallId, selectedPlacedBlockId, setEquippedTool, setSelectedFurniture, setSelectedPlacedFurnitureId, setSelectedPlacedWallId, setSelectedPlacedBlockId, undo, redo]);
-
-  const tools: { id: RenovationTool; label: string; icon: React.ReactNode; key: string }[] = [
-    { id: 'inspect', label: 'Inspect / Hand', icon: <Hand className="w-5 h-5" />, key: '1' },
-    { id: 'sponge', label: 'Sponge / Clean', icon: <Sparkles className="w-5 h-5" />, key: '2' },
-    { id: 'paint_roller', label: 'Paint Roller', icon: <Paintbrush className="w-5 h-5" />, key: '3' },
-    { id: 'flooring', label: 'Flooring Tile', icon: <Grid className="w-5 h-5" />, key: '4' },
-    { id: 'hammer', label: 'Demolition', icon: <Hammer className="w-5 h-5" />, key: '5' },
-    { id: 'wall_builder', label: 'Wall Builder', icon: <SquarePlus className="w-5 h-5" />, key: '6' },
-    { id: 'furniture', label: 'Catalog / Place', icon: <Armchair className="w-5 h-5" />, key: '7' },
-    { id: 'room_builder', label: 'Room / Block Builder', icon: <Box className="w-5 h-5" />, key: '8' }
-  ];
 
   const handleToolClick = (toolId: RenovationTool) => {
     setEquippedTool(toolId);
@@ -200,24 +168,10 @@ export const EchoFlipHUD: React.FC = () => {
     }
   };
 
-  const cycleTool = (direction: 'next' | 'prev') => {
-    const currentIndex = tools.findIndex((t) => t.id === equippedTool);
-    let nextIndex = 0;
-    if (direction === 'next') {
-      nextIndex = (currentIndex + 1) % tools.length;
-    } else {
-      nextIndex = (currentIndex - 1 + tools.length) % tools.length;
-    }
-    const targetTool = tools[nextIndex];
-    handleToolClick(targetTool.id);
-  };
-
   const getToolActionPrompt = () => {
     switch (equippedTool) {
       case 'inspect':
         return 'Click object to inspect details';
-      case 'sponge':
-        return 'Click dirt stains to scrub clean';
       case 'paint_roller':
         return `Click wall to paint with ${selectedPaintColor.name}`;
       case 'flooring':
@@ -227,7 +181,7 @@ export const EchoFlipHUD: React.FC = () => {
       case 'wall_builder':
         return `Click floor to build ${selectedWallBlock.name}`;
       case 'room_builder':
-        return 'Click 1st corner, drag area, click 2nd corner to create room/block! (Esc: Cancel, Shift: Free Snap, Ctrl: Fine Snap)';
+        return 'Click 1st corner, drag area, click 2nd corner to create room/block!';
       case 'furniture':
         return selectedFurniture
           ? `Click floor to place ${selectedFurniture.name} (R: Rotate, T: Tilt, G: Roll)`
@@ -238,81 +192,102 @@ export const EchoFlipHUD: React.FC = () => {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 flex flex-col justify-between p-3 sm:p-6 select-none overflow-hidden">
-      {/* Responsive Top Header */}
-      <header className="flex items-center justify-between gap-2">
-        <div className="pointer-events-auto flex items-center space-x-2 sm:space-x-4 bg-slate-900/90 backdrop-blur-md px-3 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-800 shadow-xl">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center font-bold text-xs sm:text-base text-white shadow-lg shrink-0">
-            EF
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-xs sm:text-lg font-bold text-white tracking-wide truncate">EchoFlip Sandbox</h1>
-            <p className="hidden xs:block text-[10px] sm:text-xs text-emerald-400 font-medium truncate">
-              60m × 60m Base Plot (3,600 m²)
-            </p>
+    <div className="pointer-events-none fixed inset-0 z-50 flex flex-col justify-between select-none overflow-hidden font-sans">
+      {/* Minecraft Center Crosshair Reticle Target Pointer */}
+      <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center">
+        <div className="relative flex items-center justify-center">
+          <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.9)]" />
+          <div className="absolute w-3.5 h-[1.5px] bg-white/80 shadow-sm" />
+          <div className="absolute h-3.5 w-[1.5px] bg-white/80 shadow-sm" />
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 1. CLEAN TOP HEADER TOOLBAR */}
+      {/* ========================================================================= */}
+      <header className="pointer-events-auto bg-white/95 text-slate-800 shadow-sm border-b border-slate-200 px-3 py-2 flex items-center justify-between gap-2 backdrop-blur-md z-40">
+        {/* Left Brand Logo */}
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 cursor-pointer">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center font-black text-sm text-white shadow-md">
+              EF
+            </div>
+            <div>
+              <span className="font-extrabold text-sm tracking-tight text-slate-900">ECHOFlIP</span>
+              <span className="text-[10px] text-blue-600 font-bold ml-1 uppercase bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">Studio</span>
+            </div>
           </div>
         </div>
 
-        {/* Center Controls & Mode Switcher */}
-        <div className="pointer-events-auto flex items-center space-x-2">
-          {/* Vertical Camera Controls Guide */}
-          <div className="hidden lg:flex items-center space-x-2 bg-slate-900/90 border border-slate-700 text-slate-300 text-xs px-3 py-2 rounded-xl backdrop-blur-md">
-            <span className="font-semibold text-emerald-400">Camera:</span>
-            <span className="bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[10px]">Space/E</span>
-            <ArrowUp className="w-3 h-3 text-emerald-400" />
-            <span className="bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[10px]">Ctrl/Q</span>
-            <ArrowDown className="w-3 h-3 text-emerald-400" />
-          </div>
-
-          {/* Fullscreen Landscape Button */}
+        {/* Center Working Action Buttons */}
+        <div className="flex items-center space-x-1 sm:space-x-2">
           <button
-            onClick={handleEnterLandscapeFullscreen}
-            className="flex items-center space-x-1.5 px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-emerald-400 backdrop-blur-md shadow-lg transition text-xs"
-            title="Enter Fullscreen Landscape Mode"
+            onClick={() => undo()}
+            disabled={undoStack.length === 0}
+            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-700 font-semibold text-xs transition"
+            title="Undo (Ctrl+Z)"
           >
-            <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
-            <span className="hidden sm:inline font-medium text-slate-200">Fullscreen</span>
+            <Undo className="w-3.5 h-3.5 text-slate-600" />
+            <span>Undo</span>
+          </button>
+          <button
+            onClick={() => redo()}
+            disabled={redoStack.length === 0}
+            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-700 font-semibold text-xs transition"
+            title="Redo (Ctrl+Y)"
+          >
+            <Redo className="w-3.5 h-3.5 text-slate-600" />
+            <span>Redo</span>
           </button>
 
-          {/* 3D Asset Size Normalizer Inspector Button */}
+          <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block" />
+
+          {/* Working 3D Inspector Modal Trigger */}
           <button
             onClick={() => setIsAssetDebugOpen(true)}
-            className="flex items-center space-x-1.5 px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl border border-sky-700/60 bg-sky-950/60 hover:bg-sky-900/60 text-sky-400 backdrop-blur-md shadow-lg transition text-xs"
-            title="Open 3D Asset Size Normalizer Inspector"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 font-semibold text-xs transition"
+            title="3D Asset Normalizer Inspector"
           >
-            <Ruler className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400 shrink-0" />
-            <span className="hidden sm:inline font-medium text-sky-200">3D Asset Inspector</span>
+            <Wrench className="w-3.5 h-3.5 text-sky-600" />
+            <span>3D Asset Inspector</span>
           </button>
 
-          {/* Mode Switcher */}
+          {/* Working Furniture Catalog Modal Trigger */}
+          <button
+            onClick={() => setCatalogOpen(true)}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow font-semibold text-xs transition"
+            title="Furniture Catalog & Gallery"
+          >
+            <Image className="w-3.5 h-3.5" />
+            <span>Furniture Gallery</span>
+          </button>
+        </div>
+
+        {/* Right Working Mode Switcher */}
+        <div className="flex items-center space-x-2">
           <button
             onClick={() => setAppMode(appMode === 'renovation' ? 'editor' : 'renovation')}
-            className={`flex items-center space-x-1.5 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border backdrop-blur-md shadow-lg transition duration-200 text-xs sm:text-sm ${appMode === 'editor'
-                ? 'bg-cyan-950/90 border-cyan-500 text-cyan-300'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-              }`}
+            className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-300 transition"
           >
-            <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
-            <span className="font-medium whitespace-nowrap">
-              {appMode === 'editor' ? 'Game Mode' : '3D Studio'}
-            </span>
+            <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+            <span>{appMode === 'editor' ? 'Game View' : '3D Studio'}</span>
           </button>
         </div>
       </header>
 
-      {/* Mobile Portrait Landscape Prompt & Auto Fullscreen Overlay */}
+      {/* Mobile Portrait Landscape Overlay */}
       {isPortrait && (
         <div className="pointer-events-auto fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-4 shadow-2xl animate-pulse">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-4 shadow-2xl animate-pulse">
             <Smartphone className="w-8 h-8 text-white rotate-90" />
           </div>
           <h2 className="text-xl font-bold text-white mb-2">Rotate to Landscape Mode</h2>
           <p className="text-xs text-slate-300 max-w-xs mb-6 leading-relaxed">
-            EchoFlip 3D Renovation Editor requires landscape full screen mode for maximum 3D view and touch controls.
+            EchoFlip ECHOFlIP 3D Editor requires landscape mode for full architectural controls.
           </p>
           <button
             onClick={handleEnterLandscapeFullscreen}
-            className="flex items-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl active:scale-95 transition"
+            className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl active:scale-95 transition"
           >
             <Maximize className="w-4 h-4" />
             <span>Enter Fullscreen Landscape ⛶</span>
@@ -320,351 +295,312 @@ export const EchoFlipHUD: React.FC = () => {
         </div>
       )}
 
-      {/* Mobile-Friendly Room / Block Creation Options Panel */}
-      {equippedTool === 'room_builder' && (
-        <div className="pointer-events-auto absolute top-16 sm:top-24 left-3 right-3 sm:left-6 sm:right-auto z-40 bg-slate-900/95 border border-slate-700/80 rounded-2xl p-3 sm:p-4 sm:w-80 max-h-[65vh] overflow-y-auto shadow-2xl backdrop-blur-md space-y-3 sm:space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <div className="flex items-center space-x-2">
-              <Box className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
-              <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide">Room / Block Creation</h2>
-            </div>
-
-            <div className="flex items-center space-x-1">
-              <button
-                onClick={() => setIsMobilePanelCollapsed(!isMobilePanelCollapsed)}
-                className="px-2 py-1 text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-lg border border-slate-700 sm:hidden"
-              >
-                {isMobilePanelCollapsed ? 'Expand' : 'Hide'}
-              </button>
-              {/* Undo / Redo Actions */}
-              <button
-                onClick={() => undo()}
-                disabled={undoStack.length === 0}
-                className="p-1 sm:p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-300 transition"
-                title="Undo (Ctrl+Z)"
-              >
-                <Undo className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-              <button
-                onClick={() => redo()}
-                disabled={redoStack.length === 0}
-                className="p-1 sm:p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-300 transition"
-                title="Redo (Ctrl+Y)"
-              >
-                <Redo className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-            </div>
+      {/* ========================================================================= */}
+      {/* 2. MAIN WORKSPACE (LEFT TOOL PANEL + CENTER VIEWPORT + RIGHT INSPECTOR) */}
+      {/* ========================================================================= */}
+      <div className="flex-1 flex justify-between pointer-events-none relative overflow-hidden">
+        {/* ----------------------------------------------------------------------- */}
+        {/* LEFT TOOLBOX / SIDEBAR PANEL */}
+        {/* ----------------------------------------------------------------------- */}
+        <div className="pointer-events-auto flex h-full z-30">
+          {/* Vertical Icon Rail */}
+          <div className="w-12 bg-white border-r border-slate-200 shadow-sm flex flex-col items-center py-3 space-y-4 text-slate-600">
+            <button
+              onClick={() => { setActiveTab('draw'); setIsLeftPanelOpen(true); }}
+              className={`p-2 rounded-xl transition ${activeTab === 'draw' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
+              title="Floor Plan & Building Tools"
+            >
+              <Box className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => { setActiveTab('doors'); setIsLeftPanelOpen(true); }}
+              className={`p-2 rounded-xl transition ${activeTab === 'doors' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
+              title="Doors & Windows"
+            >
+              <DoorOpen className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => { setActiveTab('furniture'); setIsLeftPanelOpen(true); setCatalogOpen(true); }}
+              className={`p-2 rounded-xl transition ${activeTab === 'furniture' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
+              title="Furniture & Decor Library"
+            >
+              <Armchair className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => { setActiveTab('finish'); setIsLeftPanelOpen(true); setPaintMenuOpen(true); }}
+              className={`p-2 rounded-xl transition ${activeTab === 'finish' && isLeftPanelOpen ? 'bg-blue-50 text-blue-600 font-bold border border-blue-200' : 'hover:bg-slate-100'}`}
+              title="Finishes, Paint & Flooring"
+            >
+              <Palette className="w-5 h-5" />
+            </button>
           </div>
 
-          {!isMobilePanelCollapsed && (
-            <>
-              {/* Creation Options Grid */}
-              <div>
-                <label className="text-[11px] sm:text-xs font-semibold text-slate-300 mb-1.5 block">Creation Target</label>
-                <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-                  {[
-                    { id: 'full_room' as RoomBlockType, label: 'Full Room Shell' },
-                    { id: 'empty_room' as RoomBlockType, label: 'Empty Room' },
-                    { id: 'floor' as RoomBlockType, label: 'Floor Block' },
-                    { id: 'wall' as RoomBlockType, label: 'Wall Block' },
-                    { id: 'ceiling' as RoomBlockType, label: 'Ceiling Block' },
-                    { id: 'foundation' as RoomBlockType, label: 'Platform Base' }
-                  ].map((opt) => (
+          {/* Expandable Left Drawer Panel */}
+          {isLeftPanelOpen && (
+            <div className="w-64 bg-white/95 border-r border-slate-200 shadow-xl backdrop-blur-md flex flex-col justify-between overflow-y-auto p-4 text-slate-800">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <h2 className="font-extrabold text-sm text-slate-900 tracking-tight">Floor plan</h2>
+                  <button onClick={() => setIsLeftPanelOpen(false)} className="text-slate-400 hover:text-slate-700">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Working Architectural Draw Tools */}
+                <div>
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Draw room</h3>
+                  <div className="grid grid-cols-2 gap-2">
                     <button
-                      key={opt.id}
-                      onClick={() => setActiveRoomBlockType(opt.id)}
-                      className={`text-[11px] sm:text-xs px-2 py-1.5 sm:py-2 rounded-xl border text-left font-medium transition ${activeRoomBlockType === opt.id
-                          ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 font-semibold shadow'
-                          : 'bg-slate-800/60 border-slate-700/80 text-slate-300 hover:bg-slate-800'
-                        }`}
+                      onClick={() => handleToolClick('wall_builder')}
+                      className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${equippedTool === 'wall_builder' ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'}`}
                     >
-                      {opt.label}
+                      <SquarePlus className="w-6 h-6 text-slate-700 mb-1" />
+                      <span className="text-xs font-medium">Straight wall (B)</span>
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Height & Wall Thickness Inputs */}
-              <div className="space-y-2.5 pt-1 border-t border-slate-800/80">
-                <div>
-                  <div className="flex justify-between text-[11px] sm:text-xs text-slate-300 mb-1">
-                    <span>Wall / Room Height</span>
-                    <span className="font-mono text-emerald-400 font-bold">{roomBlockHeight.toFixed(1)} m</span>
+                    <button
+                      onClick={() => handleToolClick('room_builder')}
+                      className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${equippedTool === 'room_builder' ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'}`}
+                    >
+                      <Box className="w-6 h-6 text-slate-700 mb-1" />
+                      <span className="text-xs font-medium">Rect wall (F)</span>
+                    </button>
+                    <button
+                      onClick={() => handleToolClick('hammer')}
+                      className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition ${equippedTool === 'hammer' ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'}`}
+                    >
+                      <Hammer className="w-6 h-6 text-slate-700 mb-1" />
+                      <span className="text-xs font-medium">Demolish</span>
+                    </button>
                   </div>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="6.0"
-                    step="0.1"
-                    value={roomBlockHeight}
-                    onChange={(e) => setRoomBlockHeight(parseFloat(e.target.value))}
-                    className="w-full accent-emerald-500 cursor-pointer h-5 sm:h-auto"
-                  />
                 </div>
 
+                {/* Place Doors and Windows Category */}
                 <div>
-                  <div className="flex justify-between text-[11px] sm:text-xs text-slate-300 mb-1">
-                    <span>Wall Thickness</span>
-                    <span className="font-mono text-emerald-400 font-bold">{roomBlockWallThickness.toFixed(2)} m</span>
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Place doors and windows</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => { setCatalogOpen(true); setSelectedCatalogCategory('doors'); }}
+                      className="p-2.5 rounded-xl border bg-slate-50 border-slate-200 hover:bg-slate-100 flex flex-col items-center text-center"
+                    >
+                      <DoorOpen className="w-5 h-5 text-slate-700 mb-1" />
+                      <span className="text-[11px] font-medium text-slate-700">Door Catalog</span>
+                    </button>
+                    <button
+                      onClick={() => { setCatalogOpen(true); setSelectedCatalogCategory('windows'); }}
+                      className="p-2.5 rounded-xl border bg-slate-50 border-slate-200 hover:bg-slate-100 flex flex-col items-center text-center"
+                    >
+                      <AppWindow className="w-5 h-5 text-slate-700 mb-1" />
+                      <span className="text-[11px] font-medium text-slate-700">Window Catalog</span>
+                    </button>
                   </div>
-                  <input
-                    type="range"
-                    min="0.05"
-                    max="0.6"
-                    step="0.05"
-                    value={roomBlockWallThickness}
-                    onChange={(e) => setRoomBlockWallThickness(parseFloat(e.target.value))}
-                    className="w-full accent-emerald-500 cursor-pointer h-5 sm:h-auto"
-                  />
                 </div>
 
-                {activeRoomBlockType === 'full_room' && (
-                  <label className="flex items-center space-x-2 text-[11px] sm:text-xs text-slate-300 cursor-pointer pt-1">
-                    <input
-                      type="checkbox"
-                      checked={includeCeiling}
-                      onChange={(e) => setIncludeCeiling(e.target.checked)}
-                      className="rounded accent-emerald-500"
-                    />
-                    <span>Include Ceiling Slab</span>
-                  </label>
-                )}
-              </div>
-
-              {/* Controls Quick Help */}
-              <div className="bg-slate-950/80 p-2 sm:p-2.5 rounded-xl border border-slate-800 text-[10px] sm:text-[11px] text-slate-400 space-y-0.5 sm:space-y-1">
-                <div className="text-emerald-400 font-semibold">🎮 Quick Controls:</div>
-                <div>• <span className="text-slate-200">1st Click</span>: Start corner</div>
-                <div>• <span className="text-slate-200">Move Mouse/Touch</span>: Area preview</div>
-                <div>• <span className="text-slate-200">2nd Click</span>: Confirm room</div>
-                <div className="hidden sm:block">• <span className="text-slate-200">Shift</span>: Free drag | <span className="text-slate-200">Ctrl</span>: Fine snap</div>
-              </div>
-
-              {/* Selected Block Actions */}
-              {selectedPlacedBlockId && (
-                <div className="pt-2 border-t border-slate-800 flex items-center space-x-2">
-                  <button
-                    onClick={() => duplicateRoomBlock(selectedPlacedBlockId)}
-                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs py-2 rounded-xl border border-slate-700 flex items-center justify-center space-x-1 transition"
-                  >
-                    <Copy className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Duplicate</span>
-                  </button>
-                  <button
-                    onClick={() => deleteRoomBlock(selectedPlacedBlockId)}
-                    className="flex-1 bg-red-950/60 hover:bg-red-900/80 text-red-300 text-xs py-2 rounded-xl border border-red-800/80 flex items-center justify-center space-x-1 transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                    <span>Delete Block</span>
-                  </button>
+                {/* Working Catalog & Finishes Shortcuts */}
+                <div>
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Catalog & Finishes</h3>
+                  <div className="space-y-1.5">
+                    <button
+                      onClick={() => setPaintMenuOpen(true)}
+                      className="w-full text-left px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-bold flex items-center justify-between border border-blue-200 transition"
+                    >
+                      <span>🎨 Paint & Wall Finishes</span>
+                      <span>→</span>
+                    </button>
+                    <button
+                      onClick={() => setCatalogOpen(true)}
+                      className="w-full text-left px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold flex items-center justify-between border border-indigo-200 transition"
+                    >
+                      <span>🛋️ Furniture Catalog</span>
+                      <span>→</span>
+                    </button>
+                  </div>
                 </div>
-              )}
-            </>
+              </div>
+            </div>
           )}
         </div>
-      )}
 
-      {/* Minecraft Mobile Touch Controls (Left Joystick / D-Pad, Right Touch Look, Action, Jump, Sneak & Sprint) */}
-      <MinecraftTouchControls />
-
-      {/* Center Reticle & Action Prompt */}
-      {appMode === 'renovation' && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none max-w-[90vw]">
-          <div className="w-3 h-3 rounded-full border-2 border-white/80 bg-emerald-400/40 shadow-glow" />
-          <div className="mt-3 sm:mt-4 bg-slate-950/85 backdrop-blur-md border border-slate-800 text-slate-200 text-[11px] sm:text-xs px-3 py-1.5 rounded-full shadow-lg font-medium text-center truncate">
-            {getToolActionPrompt()}
+        {/* Center Action Prompt Reticle */}
+        {appMode === 'renovation' && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-20">
+            <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-900/80 bg-white/90 shadow-lg" />
+            <div className="mt-3 bg-white/95 backdrop-blur-md border border-slate-300 text-slate-800 text-xs px-3.5 py-1.5 rounded-full shadow-lg font-bold text-center truncate">
+              {getToolActionPrompt()}
+            </div>
           </div>
+        )}
+
+        {/* ----------------------------------------------------------------------- */}
+        {/* RIGHT PROPERTY & FLOOR INSPECTOR PANEL */}
+        {/* ----------------------------------------------------------------------- */}
+        <div className="pointer-events-auto flex h-full z-30">
+          {isRightPanelOpen && (
+            <div className="w-72 bg-white/95 border-l border-slate-200 shadow-xl backdrop-blur-md flex flex-col justify-between overflow-y-auto p-4 text-slate-800">
+              <div className="space-y-4">
+                {/* Top Real-Time 2D Drone Schematic Map */}
+                <div className="w-full h-52 rounded-2xl overflow-hidden shadow-md border border-slate-300">
+                  <SchematicMap />
+                </div>
+
+                {/* Working Basic Parameters Section */}
+                <div className="border-t border-slate-200 pt-3 space-y-3">
+                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Basic Parameters</h3>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-600 font-medium">Interior area</span>
+                    <span className="font-mono font-bold bg-slate-100 px-2 py-1 rounded text-slate-800">3,600 m²</span>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-600 font-medium mb-1">
+                      <span>Room height</span>
+                      <span className="font-mono font-bold text-blue-600">{(roomBlockHeight * 1000).toFixed(0)} mm</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1.0"
+                      max="6.0"
+                      step="0.1"
+                      value={roomBlockHeight}
+                      onChange={(e) => setRoomBlockHeight(parseFloat(e.target.value))}
+                      className="w-full accent-blue-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-600 font-medium mb-1">
+                      <span>Slab thickness</span>
+                      <span className="font-mono font-bold text-blue-600">{(roomBlockWallThickness * 1000).toFixed(0)} mm</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.05"
+                      max="0.5"
+                      step="0.05"
+                      value={roomBlockWallThickness}
+                      onChange={(e) => setRoomBlockWallThickness(parseFloat(e.target.value))}
+                      className="w-full accent-blue-600 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* Working Grid Snap Controls */}
+                <div className="border-t border-slate-200 pt-3 space-y-3">
+                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Grid Controls</h3>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-600 font-medium">Grid Snap</span>
+                    <button
+                      onClick={() => toggleGridSnap()}
+                      className={`px-2.5 py-1 rounded-lg border font-bold text-xs ${gridSnapEnabled ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-600 border-slate-300'}`}
+                    >
+                      {gridSnapEnabled ? `${gridSnapSize}m` : 'OFF'}
+                    </button>
+                  </div>
+
+                  {gridSnapEnabled && (
+                    <div className="flex items-center space-x-1">
+                      {[0.25, 0.5, 1.0].map((sz) => (
+                        <button
+                          key={sz}
+                          onClick={() => setGridSnapSize(sz)}
+                          className={`flex-1 py-1 rounded border text-xs font-mono font-bold ${gridSnapSize === sz ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
+                        >
+                          {sz}m
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Working Object Rotation & Transforms */}
+                {(equippedTool === 'furniture' || equippedTool === 'wall_builder' || selectedFurniture) && (
+                  <div className="border-t border-slate-200 pt-3 space-y-2">
+                    <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Transform</h3>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button onClick={() => rotatePlacementYaw(45)} className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg border">
+                        Rotate +45° (R)
+                      </button>
+                      <button onClick={() => rotatePlacementYaw(90)} className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg border">
+                        Rotate +90°
+                      </button>
+                      <button onClick={() => tiltPlacementPitch(45)} className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg border">
+                        Tilt Pitch (T)
+                      </button>
+                      <button onClick={() => rollPlacementRoll(45)} className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg border">
+                        Roll Roll (G)
+                      </button>
+                    </div>
+                    <button onClick={resetPlacementRotation} className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border">
+                      Reset Rotation
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* 3D Object Rotation & Grid Snap Bar (Top-Center under header on mobile, bottom on desktop) */}
-      {(equippedTool === 'furniture' || equippedTool === 'wall_builder' || selectedFurniture || selectedPlacedFurnitureId || selectedPlacedWallId) && (
-        <div className="pointer-events-auto absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-2 bg-slate-900/95 border border-slate-700/80 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl shadow-2xl backdrop-blur-md max-w-[94vw] overflow-x-auto no-scrollbar z-40">
-          <button
-            onClick={() => toggleGridSnap()}
-            className={`text-[11px] sm:text-xs px-2.5 py-1.5 rounded-xl border font-semibold transition flex items-center gap-1 shrink-0 ${gridSnapEnabled
-                ? 'bg-emerald-950 border-emerald-500 text-emerald-300'
-                : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}
-          >
-            <Grid className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400 shrink-0" />
-            Grid: {gridSnapEnabled ? `${gridSnapSize}m` : 'OFF'}
-          </button>
-          <button
-            onClick={() => {
-              const sizes = [0.25, 0.5, 1.0];
-              const next = sizes[(sizes.indexOf(gridSnapSize) + 1) % sizes.length];
-              setGridSnapSize(next);
-            }}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] sm:text-xs px-2 py-1.5 rounded-xl border border-slate-700 font-mono transition shrink-0"
-          >
-            {gridSnapSize}m
-          </button>
-
-          <span className="text-slate-600 font-bold shrink-0">|</span>
-
-          <button
-            onClick={() => rotatePlacementYaw(45)}
-            className="bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 text-[11px] sm:text-xs px-2.5 py-1.5 rounded-xl border border-emerald-700/60 font-medium transition flex items-center gap-1 shrink-0"
-          >
-            +45° <span className="hidden sm:inline text-[10px] text-emerald-400 font-mono">[R]</span>
-          </button>
-          <button
-            onClick={() => rotatePlacementYaw(90)}
-            className="bg-teal-950/80 hover:bg-teal-900 text-teal-300 text-[11px] sm:text-xs px-2.5 py-1.5 rounded-xl border border-teal-700/60 font-medium transition flex items-center gap-1 shrink-0"
-          >
-            +90°
-          </button>
-          <button
-            onClick={() => tiltPlacementPitch(45)}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] sm:text-xs px-2 py-1.5 rounded-xl border border-slate-700 transition shrink-0"
-          >
-            Tilt
-          </button>
-          <button
-            onClick={() => rollPlacementRoll(45)}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] sm:text-xs px-2 py-1.5 rounded-xl border border-slate-700 transition shrink-0"
-          >
-            Roll
-          </button>
-          <button
-            onClick={resetPlacementRotation}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] sm:text-xs px-2 py-1.5 rounded-xl border border-slate-700 transition shrink-0"
-          >
-            Reset
-          </button>
-          <button
-            onClick={() => {
-              setSelectedFurniture(null);
-              setSelectedPlacedFurnitureId(null);
-              setSelectedPlacedWallId(null);
-              setEquippedTool('inspect');
-              useRenovationStore.getState().showToast('Selection Cancelled');
-            }}
-            className="bg-red-950/90 hover:bg-red-900 text-red-200 text-[11px] sm:text-xs px-2.5 py-1.5 rounded-xl border border-red-700/80 font-semibold transition shrink-0"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
+      {/* Touch Controls for Mobile */}
+      <MinecraftTouchControls />
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="absolute top-16 sm:top-24 left-1/2 transform -translate-x-1/2 pointer-events-auto bg-emerald-600 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-2xl font-medium text-xs sm:text-sm flex items-center space-x-2 animate-bounce max-w-[90vw] truncate z-50">
-          <Sparkles className="w-4 h-4 text-yellow-300 shrink-0" />
-          <span className="truncate">{toastMessage}</span>
+        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 pointer-events-auto bg-slate-900 text-white px-5 py-2.5 rounded-full shadow-2xl font-bold text-xs sm:text-sm flex items-center space-x-2 animate-bounce z-50 border border-slate-700">
+          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Mobile-Friendly Compact Tool Selector Pill (Bottom-Center on mobile) */}
-      {appMode === 'renovation' && (
-        <div className="pointer-events-auto absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-1 bg-slate-950/95 border border-slate-800 px-2.5 py-1.5 rounded-full shadow-2xl backdrop-blur-md z-40 sm:hidden max-w-[65vw]">
-          <button
-            onClick={() => cycleTool('prev')}
-            className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 active:bg-emerald-600 text-slate-300 font-bold flex items-center justify-center border border-slate-700 text-[10px] shrink-0"
-            title="Previous Tool"
-          >
-            ◄
-          </button>
-          
-          <button
-            onClick={() => {
-              if (equippedTool === 'furniture') setCatalogOpen(true);
-              else if (equippedTool === 'paint_roller' || equippedTool === 'flooring' || equippedTool === 'wall_builder') setPaintMenuOpen(true);
-            }}
-            className="flex items-center space-x-1.5 px-2.5 py-1 bg-gradient-to-r from-emerald-950 to-teal-950 border border-emerald-500/60 rounded-full text-emerald-300 font-semibold text-[11px] truncate max-w-[130px] active:scale-95 transition"
-          >
-            {tools.find((t) => t.id === equippedTool)?.icon}
-            <span className="truncate">{tools.find((t) => t.id === equippedTool)?.label}</span>
-          </button>
+      {/* ========================================================================= */}
+      {/* 3. CLEAN BOTTOM BAR VIEWPORT CONTROLS */}
+      {/* ========================================================================= */}
+      <footer className="pointer-events-auto bg-white/95 text-slate-800 shadow-sm border-t border-slate-200 px-4 py-2 flex items-center justify-between backdrop-blur-md z-40">
+        <div className="flex items-center space-x-2 text-xs text-slate-600 font-semibold">
+          <span>60m × 60m Base Plot</span>
+        </div>
 
+        {/* Working Fullscreen Landscape Button */}
+        <div className="flex items-center space-x-2">
           <button
-            onClick={() => cycleTool('next')}
-            className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 active:bg-emerald-600 text-slate-300 font-bold flex items-center justify-center border border-slate-700 text-[10px] shrink-0"
-            title="Next Tool"
+            onClick={handleEnterLandscapeFullscreen}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-blue-600 font-bold text-xs border border-slate-300 transition"
+            title="Toggle Fullscreen Landscape View"
           >
-            ►
+            <Maximize className="w-3.5 h-3.5 text-blue-600" />
+            <span>Fullscreen ⛶</span>
           </button>
         </div>
-      )}
+      </footer>
 
-      {/* Desktop Toolbelt Dock (Bottom-Center on sm+ screens) */}
-      {appMode === 'renovation' && (
-        <footer className="pointer-events-auto relative z-50 hidden sm:flex justify-center w-full">
-          <div className="flex items-center space-x-1.5 sm:space-x-2 bg-slate-900/95 backdrop-blur-md p-1.5 sm:p-2 rounded-2xl sm:rounded-3xl border border-slate-800 shadow-2xl max-w-[96vw] overflow-x-auto no-scrollbar touch-pan-x flex-nowrap">
-            {tools.map((t) => {
-              const isEquipped = equippedTool === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => handleToolClick(t.id)}
-                  onTouchEnd={(e) => {
-                    e.stopPropagation();
-                    handleToolClick(t.id);
-                  }}
-                  className={`relative flex flex-col items-center justify-center min-w-[44px] w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl font-medium transition duration-200 shrink-0 ${isEquipped
-                      ? 'bg-gradient-to-t from-emerald-600 to-teal-500 text-white shadow-lg scale-105 border border-emerald-400'
-                      : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 hover:text-slate-200'
-                    }`}
-                  title={t.label}
-                >
-                  {t.icon}
-                  <span className="text-[9px] sm:text-[10px] mt-0.5 font-bold opacity-80">{t.key}</span>
-                </button>
-              );
-            })}
-          </div>
-        </footer>
-      )}
-
-      {/* Furniture Catalog Modal */}
+      {/* Working Furniture Catalog Modal */}
       {isCatalogOpen && (
-        <div className="pointer-events-auto fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-800">
+        <div className="pointer-events-auto fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <div className="flex items-center space-x-2">
-                <Armchair className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400 shrink-0" />
-                <h2 className="text-sm sm:text-xl font-bold text-white truncate">3D Furniture & Catalog</h2>
+                <Armchair className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-extrabold text-slate-900">ECHOFlIP Furniture Library</h2>
               </div>
-              <button
-                onClick={() => setCatalogOpen(false)}
-                className="p-1.5 sm:p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
-              >
-                <X className="w-5 h-5 sm:w-6 sm:h-6" />
+              <button onClick={() => setCatalogOpen(false)} className="p-2 text-slate-400 hover:text-slate-800 rounded-xl hover:bg-slate-100">
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            {/* Category Filter Tabs */}
-            <div className="px-4 py-2 bg-slate-950/80 border-b border-slate-800 flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
-              {[
-                { id: 'all', label: 'All Items' },
-                { id: 'seating', label: 'Seating' },
-                { id: 'tables', label: 'Tables & Desks' },
-                { id: 'beds', label: 'Beds' },
-                { id: 'storage', label: 'Storage' },
-                { id: 'kitchen', label: 'Kitchen' },
-                { id: 'bathroom', label: 'Bathroom' },
-                { id: 'doors', label: 'Doors' },
-                { id: 'windows', label: 'Windows' },
-                { id: 'lighting', label: 'Lighting' },
-                { id: 'building', label: 'Building & Stairs' },
-                { id: 'decor', label: 'Decor' }
-              ].map((tab) => (
+            <div className="px-6 py-2 bg-slate-50 border-b border-slate-200 flex items-center space-x-2 overflow-x-auto">
+              {['all', 'seating', 'tables', 'beds', 'storage', 'kitchen', 'bathroom', 'doors', 'windows', 'lighting'].map((cat) => (
                 <button
-                  key={tab.id}
-                  onClick={() => setSelectedCatalogCategory(tab.id)}
-                  className={`text-[11px] sm:text-xs px-3 py-1.5 rounded-xl border font-medium whitespace-nowrap transition ${
-                    selectedCatalogCategory === tab.id
-                      ? 'bg-emerald-950 border-emerald-500 text-emerald-300 font-semibold shadow'
-                      : 'bg-slate-800/60 border-slate-700/80 text-slate-400 hover:text-slate-200'
-                  }`}
+                  key={cat}
+                  onClick={() => setSelectedCatalogCategory(cat)}
+                  className={`text-xs px-3 py-1.5 rounded-xl border font-bold uppercase tracking-wider transition ${selectedCatalogCategory === cat ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'}`}
                 >
-                  {tab.label}
+                  {cat}
                 </button>
               ))}
             </div>
 
-            <div className="p-3 sm:p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-4 overflow-y-auto">
+            <div className="p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto">
               {FURNITURE_CATALOG.filter((item) => selectedCatalogCategory === 'all' || item.category === selectedCatalogCategory).map((item) => (
                 <button
                   key={item.id}
@@ -673,34 +609,15 @@ export const EchoFlipHUD: React.FC = () => {
                     setEquippedTool('furniture');
                     setCatalogOpen(false);
                   }}
-                  className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition flex flex-col justify-between ${selectedFurniture?.id === item.id
-                      ? 'bg-emerald-950/80 border-emerald-500 text-white shadow-lg'
-                      : 'bg-slate-800/60 hover:bg-slate-800 border-slate-700 text-slate-300'
-                    }`}
+                  className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between ${selectedFurniture?.id === item.id ? 'bg-blue-50 border-blue-500 shadow-md' : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'}`}
                 >
                   <div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                        {item.category}
-                      </span>
-                      {item.modelPath && (
-                        <span className="text-[8px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-700/60 px-1 py-0.5 rounded font-semibold">
-                          3D GLB
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-xs sm:text-sm font-semibold text-white mt-1">{item.name}</h3>
-                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                      {item.dimensions ? `${item.dimensions[0]}m × ${item.dimensions[1]}m × ${item.dimensions[2]}m` : ''}
-                    </p>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600">{item.category}</span>
+                    <h3 className="text-sm font-bold text-slate-900 mt-1">{item.name}</h3>
                   </div>
-                  <div className="mt-2 sm:mt-4 flex items-center justify-between">
-                    <span className="text-[9px] sm:text-[10px] bg-emerald-900/60 text-emerald-300 px-1.5 py-0.5 rounded-full font-bold">
-                      ${item.price}
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded-full">
-                      Select
-                    </span>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-extrabold">${item.price}</span>
+                    <span className="text-xs bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold">Select</span>
                   </div>
                 </button>
               ))}
@@ -709,28 +626,24 @@ export const EchoFlipHUD: React.FC = () => {
         </div>
       )}
 
-      {/* Paint & Flooring Selection Modal */}
+      {/* Working Paint & Materials Modal */}
       {isPaintMenuOpen && (
-        <div className="pointer-events-auto fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-800">
+        <div className="pointer-events-auto fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <div className="flex items-center space-x-2">
-                <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400 shrink-0" />
-                <h2 className="text-sm sm:text-xl font-bold text-white truncate">Materials & Paint</h2>
+                <Palette className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-extrabold text-slate-900">Wall Paint & Flooring Presets</h2>
               </div>
-              <button
-                onClick={() => setPaintMenuOpen(false)}
-                className="p-1.5 sm:p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
-              >
-                <X className="w-5 h-5 sm:w-6 sm:h-6" />
+              <button onClick={() => setPaintMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-800 rounded-xl hover:bg-slate-100">
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto">
-              {/* Paint Colors */}
+            <div className="p-6 space-y-6 overflow-y-auto">
               <div>
-                <h3 className="text-xs sm:text-sm font-semibold text-slate-300 mb-2">Paint Colors</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                <h3 className="text-sm font-bold text-slate-800 mb-2">Paint Colors</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {PAINT_COLORS.map((paint) => (
                     <button
                       key={paint.id}
@@ -739,24 +652,18 @@ export const EchoFlipHUD: React.FC = () => {
                         setEquippedTool('paint_roller');
                         setPaintMenuOpen(false);
                       }}
-                      className={`p-2.5 sm:p-3 rounded-xl border flex items-center space-x-2 sm:space-x-3 text-left transition ${selectedPaintColor.id === paint.id
-                          ? 'bg-slate-800 border-emerald-500 ring-2 ring-emerald-500/40'
-                          : 'bg-slate-800/40 border-slate-700'
-                        }`}
+                      className={`p-3 rounded-xl border flex items-center space-x-3 text-left transition ${selectedPaintColor.id === paint.id ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-400' : 'bg-slate-50 border-slate-200'}`}
                     >
-                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-white/20 shadow shrink-0" style={{ backgroundColor: paint.hex }} />
-                      <div className="min-w-0">
-                        <div className="text-[11px] sm:text-xs font-semibold text-white truncate">{paint.name}</div>
-                      </div>
+                      <div className="w-6 h-6 rounded-full border border-slate-300 shadow shrink-0" style={{ backgroundColor: paint.hex }} />
+                      <span className="text-xs font-bold text-slate-800 truncate">{paint.name}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Flooring Materials */}
               <div>
-                <h3 className="text-xs sm:text-sm font-semibold text-slate-300 mb-2">Flooring Materials</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                <h3 className="text-sm font-bold text-slate-800 mb-2">Flooring Materials</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {FLOORING_MATERIALS.map((floor) => (
                     <button
                       key={floor.id}
@@ -765,21 +672,17 @@ export const EchoFlipHUD: React.FC = () => {
                         setEquippedTool('flooring');
                         setPaintMenuOpen(false);
                       }}
-                      className={`p-2.5 sm:p-3 rounded-xl border text-left transition ${selectedFlooring.id === floor.id
-                          ? 'bg-slate-800 border-emerald-500'
-                          : 'bg-slate-800/40 border-slate-700'
-                        }`}
+                      className={`p-3 rounded-xl border text-left transition ${selectedFlooring.id === floor.id ? 'bg-blue-50 border-blue-500 font-bold' : 'bg-slate-50 border-slate-200'}`}
                     >
-                      <div className="text-[11px] sm:text-xs font-semibold text-white">{floor.name}</div>
+                      <span className="text-xs font-bold text-slate-800">{floor.name}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Wall Block Presets */}
               <div>
-                <h3 className="text-xs sm:text-sm font-semibold text-slate-300 mb-2">Wall Builder Presets</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                <h3 className="text-sm font-bold text-slate-800 mb-2">Wall Presets</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {WALL_BLOCK_PRESETS.map((preset) => (
                     <button
                       key={preset.id}
@@ -788,12 +691,9 @@ export const EchoFlipHUD: React.FC = () => {
                         setEquippedTool('wall_builder');
                         setPaintMenuOpen(false);
                       }}
-                      className={`p-2.5 sm:p-3 rounded-xl border text-left transition ${selectedWallBlock.id === preset.id
-                          ? 'bg-slate-800 border-emerald-500'
-                          : 'bg-slate-800/40 border-slate-700'
-                        }`}
+                      className={`p-3 rounded-xl border text-left transition ${selectedWallBlock.id === preset.id ? 'bg-blue-50 border-blue-500 font-bold' : 'bg-slate-50 border-slate-200'}`}
                     >
-                      <div className="text-[11px] sm:text-xs font-semibold text-white">{preset.name}</div>
+                      <span className="text-xs font-bold text-slate-800">{preset.name}</span>
                     </button>
                   ))}
                 </div>
@@ -803,7 +703,7 @@ export const EchoFlipHUD: React.FC = () => {
         </div>
       )}
 
-      {/* Developer 3D Asset Size Normalizer Inspector Modal */}
+      {/* Developer Inspector Modal */}
       <AssetDebugModal isOpen={isAssetDebugOpen} onClose={() => setIsAssetDebugOpen(false)} />
     </div>
   );

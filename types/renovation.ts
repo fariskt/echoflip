@@ -38,6 +38,10 @@ export interface WallBlockPreset {
   price: number;
   type: 'drywall' | 'brick' | 'stone' | 'glass' | 'doorway';
   isTransparent?: boolean;
+  width?: number;
+  height?: number;
+  depth?: number;
+  thickness?: number;
 }
 
 export interface PaintColor {
@@ -98,7 +102,7 @@ export interface FlooringTile {
 export interface FixtureObject {
   id: string;
   name: string;
-  type: 'light' | 'sink' | 'outlet' | 'door' | 'window' | 'radiator';
+  type: 'light' | 'sink' | 'outlet' | 'door' | 'window' | 'radiator' | 'plumbing';
   position: [number, number, number];
   rotation: [number, number, number];
   isBroken: boolean;
@@ -168,6 +172,7 @@ export interface FurnitureCatalogItem {
   dimensions: [number, number, number];
   placementSurface?: PlacementSurface;
   icon?: string;
+  height?: number;
   scaleOffset?: [number, number, number];
   rotationOffset?: [number, number, number];
   targetDimensions?: [number, number, number];

@@ -5,7 +5,11 @@
   "estimatedValue": 500000,
   "buyPrice": 0,
   "isOwned": true,
-  "spawnPoint": [0, 1.6, 20],
+  "spawnPoint": [
+    0,
+    1.6,
+    20
+  ],
   "walls": [],
   "floors": [
     {

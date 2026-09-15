@@ -141,7 +141,7 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
       setValidationMessage(val.reason || '');
       setDimText(`${width.toFixed(1)}m × ${length.toFixed(1)}m (H: ${height.toFixed(1)}m)`);
 
-      const color = val.valid ? '#22c55e' : '#ef4444';
+      const color = val.valid ? (selectedWallBlock.color || '#38bdf8') : '#ef4444';
       if (previewBoxMatRef.current) {
         previewBoxMatRef.current.color.set(color);
       }
@@ -157,6 +157,7 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
   if (equippedTool !== 'room_builder') return null;
 
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+    if (e.button !== 0) return; // Only left-click (button 0) places room blocks
     e.stopPropagation();
 
     const pt = snapPoint(e.point);
@@ -214,7 +215,7 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
       {/* Start Corner Marker */}
       <mesh ref={startMarkerRef} visible={false}>
         <cylinderGeometry args={[0.2, 0.2, 0.1, 16]} />
-        <meshBasicMaterial color="#06b6d4" transparent opacity={0.8} />
+        <meshBasicMaterial color="#38bdf8" transparent opacity={0.6} />
       </mesh>
 
       {/* Dynamic 3D Preview Box */}
@@ -222,10 +223,10 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial
           ref={previewBoxMatRef}
-          color="#22c55e"
+          color={selectedWallBlock.color || "#38bdf8"}
           transparent
-          opacity={0.35}
-          roughness={0.2}
+          opacity={0.4}
+          roughness={0.5}
           wireframe={false}
         />
       </mesh>
@@ -240,8 +241,8 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
           ]}
           center
         >
-          <div className="pointer-events-none flex flex-col items-center bg-slate-950/90 text-white text-xs px-3 py-1.5 rounded-xl border border-emerald-500/50 shadow-2xl backdrop-blur-md">
-            <span className="font-bold text-emerald-400">{dimText}</span>
+          <div className="pointer-events-none flex flex-col items-center bg-slate-950/90 text-white text-xs px-3 py-1.5 rounded-xl border border-sky-500/40 shadow-2xl backdrop-blur-md">
+            <span className="font-bold text-sky-400">{dimText}</span>
             <span className="text-[10px] text-slate-300">
               {activeRoomBlockType.replace('_', ' ').toUpperCase()} MODE
             </span>

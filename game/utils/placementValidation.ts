@@ -24,7 +24,7 @@ export interface ValidationResult {
   alignedRotation: [number, number, number];
 }
 
-// Pre-allocate temporary Three.js objects to eliminate garbage collection & per-frame allocation
+// Pre-allocate temporary Three.js objects to eliminate per-frame garbage collection
 const tempBoxProposed = new THREE.Box3();
 const tempBoxExisting = new THREE.Box3();
 const tempVecCenter = new THREE.Vector3();
@@ -38,18 +38,18 @@ export function validatePlacement({
   cameraPosition,
   placementRotation,
   property,
-  maxReachDistance = 6.0
+  maxReachDistance = 8.0
 }: PlacementValidationParams): ValidationResult {
   const defaultRes: ValidationResult = {
     valid: false,
-    reason: 'Invalid hit point',
-    alignedPosition: [hitPoint.x, hitPoint.y, hitPoint.z],
+    reason: 'Invalid target point',
+    alignedPosition: [hitPoint?.x || 0, hitPoint?.y || 0, hitPoint?.z || 0],
     alignedRotation: placementRotation
   };
 
   if (!hitPoint || !hitNormal) return defaultRes;
 
-  // 1. Reach Distance Check
+  // 1. Max Reach Distance Check
   const distance = hitPoint.distanceTo(cameraPosition);
   if (distance > maxReachDistance) {
     return {
@@ -59,89 +59,61 @@ export function validatePlacement({
     };
   }
 
-  // Determine surface requirements
-  let requiredSurface: PlacementSurface = 'FloorOnly';
-  if ('placementSurface' in item && item.placementSurface) {
-    requiredSurface = item.placementSurface;
-  } else if ('category' in item && item.category === 'building') {
-    requiredSurface = item.meshName.toLowerCase().includes('window') || item.meshName.toLowerCase().includes('door')
-      ? 'WallMounted'
-      : 'FloorOnly';
-  }
-
-  // Determine object dimensions
-  let dims: [number, number, number] = [1.0, 1.0, 1.0];
-  if ('dimensions' in item && item.dimensions) {
-    dims = item.dimensions;
-  }
-
-  // 2. Surface Tag Alignment Validation
-  const hitType = hitUserData.type || '';
-  const isUpwardNormal = hitNormal.y > 0.6;
-  const isDownwardNormal = hitNormal.y < -0.6;
-  const isWallNormal = Math.abs(hitNormal.y) < 0.4;
-
-  let isSurfaceValid = false;
-  let surfaceReason = '';
-
-  switch (requiredSurface) {
-    case 'FloorOnly':
-      isSurfaceValid = isUpwardNormal || hitType === 'floor';
-      if (!isSurfaceValid) surfaceReason = 'Item must be placed on a floor surface';
-      break;
-
-    case 'WallMounted':
-      isSurfaceValid = isWallNormal || hitType === 'wall';
-      if (!isSurfaceValid) surfaceReason = 'Item must be mounted on a wall';
-      break;
-
-    case 'CeilingMounted':
-      isSurfaceValid = isDownwardNormal;
-      if (!isSurfaceValid) surfaceReason = 'Item must be mounted on a ceiling';
-      break;
-
-    case 'Tabletop':
-      isSurfaceValid = isUpwardNormal && (hitType === 'furniture' || hitType === 'floor' || hitUserData.surface === 'tabletop');
-      if (!isSurfaceValid) surfaceReason = 'Item must be placed on a flat tabletop or floor surface';
-      break;
-
-    case 'SurfaceFlat':
-    default:
-      isSurfaceValid = isUpwardNormal || hitType === 'floor';
-      if (!isSurfaceValid) surfaceReason = 'Item must be placed on a flat surface';
-      break;
-  }
-
-  if (!isSurfaceValid) {
-    return {
-      ...defaultRes,
-      valid: false,
-      reason: surfaceReason
-    };
-  }
-
-  // Calculate aligned pivot offset based on surface normal & dimensions
-  const pos: [number, number, number] = [hitPoint.x, hitPoint.y, hitPoint.z];
-
-  // Grid snap alignment for floor & top surfaces
   const gridSnapSize = 1.0;
-  if (isUpwardNormal) {
+  const isFurniture = 'category' in item && item.category !== 'building';
+  const isBuildingBlock = !isFurniture;
+
+  // Discrete World-Space Face Normal Vector (-1, 0, 1)
+  const normX = Math.abs(hitNormal.x) > 0.5 ? Math.sign(hitNormal.x) : 0;
+  const normY = Math.abs(hitNormal.y) > 0.5 ? Math.sign(hitNormal.y) : 0;
+  const normZ = Math.abs(hitNormal.z) > 0.5 ? Math.sign(hitNormal.z) : 0;
+
+  const hitType = hitUserData.type || '';
+  const isTargetingFloor = hitType === 'floor' || (normY === 1 && hitPoint.y <= 0.1);
+
+  const pos: [number, number, number] = [0, 0, 0];
+
+  if (isBuildingBlock) {
+    // MINECRAFT-STYLE FACE-ADJACENT BUILDING BLOCK PLACEMENT
+    const blockHeight = ('height' in item && item.height) ? item.height : 1.0;
+
+    if (isTargetingFloor) {
+      // Direct placement on floor surface
+      pos[0] = Math.floor(hitPoint.x / gridSnapSize) * gridSnapSize + gridSnapSize / 2;
+      pos[1] = 0;
+      pos[2] = Math.floor(hitPoint.z / gridSnapSize) * gridSnapSize + gridSnapSize / 2;
+    } else if (normY === 1) {
+      // Direct top face placement -> place directly on top of target face
+      pos[0] = Math.floor(hitPoint.x / gridSnapSize) * gridSnapSize + gridSnapSize / 2;
+      pos[2] = Math.floor(hitPoint.z / gridSnapSize) * gridSnapSize + gridSnapSize / 2;
+      pos[1] = Math.max(0, Math.round(hitPoint.y * 100) / 100);
+    } else {
+      // Targeting a side face -> compute face-adjacent grid cell
+      const insidePoint = hitPoint.clone().addScaledVector(hitNormal, -0.1);
+      const targetGridX = Math.floor(insidePoint.x / gridSnapSize) * gridSnapSize + gridSnapSize / 2;
+      const targetGridZ = Math.floor(insidePoint.z / gridSnapSize) * gridSnapSize + gridSnapSize / 2;
+      const targetGridY = Math.max(0, Math.floor((insidePoint.y + 0.05) / blockHeight) * blockHeight);
+
+      pos[0] = targetGridX + normX * gridSnapSize;
+      pos[2] = targetGridZ + normZ * gridSnapSize;
+      pos[1] = Math.max(0, targetGridY + normY * blockHeight);
+    }
+  } else {
+    // FURNITURE PLACEMENT: Ground / Surface Snapping
     pos[0] = Math.floor(hitPoint.x / gridSnapSize) * gridSnapSize + gridSnapSize / 2;
     pos[2] = Math.floor(hitPoint.z / gridSnapSize) * gridSnapSize + gridSnapSize / 2;
-  }
+    pos[1] = Math.max(0, hitPoint.y);
 
-  if (requiredSurface === 'FloorOnly' || requiredSurface === 'Tabletop' || requiredSurface === 'SurfaceFlat') {
-    if (isUpwardNormal) {
-      pos[1] = hitPoint.y;
+    const furnitureItem = item as FurnitureCatalogItem;
+    if (furnitureItem.placementSurface === 'WallMounted') {
+      const depth = furnitureItem.dimensions ? furnitureItem.dimensions[2] : 0.4;
+      pos[0] += normX * (depth / 2 + 0.02);
+      pos[1] += normY * (depth / 2 + 0.02);
+      pos[2] += normZ * (depth / 2 + 0.02);
     }
-  } else if (requiredSurface === 'WallMounted') {
-    // Offset slightly out from wall along normal
-    pos[0] += hitNormal.x * (dims[2] / 2 + 0.02);
-    pos[1] += hitNormal.y * (dims[2] / 2 + 0.02);
-    pos[2] += hitNormal.z * (dims[2] / 2 + 0.02);
   }
 
-  // 3. Property Floor Bounds Check
+  // 2. Property Floor Bounds Check
   if (property && property.floors && property.floors.length > 0) {
     const floor = property.floors[0];
     const { minX, maxX, minZ, maxZ } = floor.bounds;
@@ -151,74 +123,99 @@ export function validatePlacement({
         ...defaultRes,
         alignedPosition: pos,
         valid: false,
-        reason: 'Item position is outside property boundary'
+        reason: 'Outside property boundary'
       };
     }
   }
 
-  // 4. Lightweight AABB Box Collision Check against existing furniture & active walls
-  tempVecCenter.set(pos[0], pos[1], pos[2]);
-  tempVecSize.set(dims[0], dims[1], dims[2]);
-  tempBoxProposed.setFromCenterAndSize(tempVecCenter, tempVecSize);
+  // 3. Floating Air Support Check for Elevated Building Blocks (Y > 0)
+  let blockHeight = 1.0;
+  if ('height' in item && item.height) blockHeight = item.height;
+  if ('dimensions' in item && item.dimensions) blockHeight = item.dimensions[1];
 
-  // Shrink proposed box by 0.04m on all sides to avoid false-positive floor/wall touching
-  tempBoxProposed.expandByScalar(-0.04);
+  if (isBuildingBlock && pos[1] > 0.05) {
+    let hasBlockSupport = false;
+
+    if (property) {
+      for (const wall of property.walls) {
+        if (wall.isDemolished) continue;
+
+        const wMidX = (wall.startPoint[0] + wall.endPoint[0]) / 2;
+        const wMidZ = (wall.startPoint[2] + wall.endPoint[2]) / 2;
+        const wY = wall.startPoint[1] ?? 0;
+
+        const dx = Math.abs(wMidX - pos[0]);
+        const dy = Math.abs(wY - pos[1]);
+        const dz = Math.abs(wMidZ - pos[2]);
+
+        const isSupportBelow = dx < 0.35 && dz < 0.35 && Math.abs((wY + (wall.height || 1.0)) - pos[1]) < 0.35;
+        const isSupportAbove = dx < 0.35 && dz < 0.35 && Math.abs(wY - (pos[1] + blockHeight)) < 0.35;
+        const isSupportSideX = Math.abs(dy) < 1.25 && dz < 0.35 && Math.abs(dx - gridSnapSize) < 0.35;
+        const isSupportSideZ = Math.abs(dy) < 1.25 && dx < 0.35 && Math.abs(dz - gridSnapSize) < 0.35;
+
+        if (isSupportBelow || isSupportAbove || isSupportSideX || isSupportSideZ) {
+          hasBlockSupport = true;
+          break;
+        }
+      }
+    }
+
+    if (!hasBlockSupport) {
+      return {
+        ...defaultRes,
+        alignedPosition: pos,
+        valid: false,
+        reason: 'Block cannot float in air without block support'
+      };
+    }
+  }
+
+  // 4. Grid Cell Occupancy & Collision Check
+  tempVecCenter.set(pos[0], pos[1] + blockHeight / 2, pos[2]);
+  tempVecSize.set(gridSnapSize, blockHeight, gridSnapSize);
+  tempBoxProposed.setFromCenterAndSize(tempVecCenter, tempVecSize);
+  tempBoxProposed.expandByScalar(-0.06);
 
   if (property) {
-    // Check collision against existing furniture
-    for (const furn of property.furniture) {
-      const furnDims = [1.0, 1.0, 1.0];
-      const fCenter = new THREE.Vector3(...furn.position);
-      const fSize = new THREE.Vector3(...furnDims);
-      tempBoxExisting.setFromCenterAndSize(fCenter, fSize);
-      tempBoxExisting.expandByScalar(-0.04);
+    // Check against existing undemolished walls
+    for (const wall of property.walls) {
+      if (wall.isDemolished) continue;
+
+      const wMidX = (wall.startPoint[0] + wall.endPoint[0]) / 2;
+      const wMidZ = (wall.startPoint[2] + wall.endPoint[2]) / 2;
+      const wY = (wall.startPoint[1] ?? 0) + (wall.height || 1.0) / 2;
+      const wSize = new THREE.Vector3(
+        Math.max(1.0, Math.abs(wall.endPoint[0] - wall.startPoint[0])),
+        wall.height || 1.0,
+        Math.max(1.0, Math.abs(wall.endPoint[2] - wall.startPoint[2]))
+      );
+
+      tempBoxExisting.setFromCenterAndSize(new THREE.Vector3(wMidX, wY, wMidZ), wSize);
+      tempBoxExisting.expandByScalar(-0.06);
 
       if (tempBoxProposed.intersectsBox(tempBoxExisting)) {
         return {
           ...defaultRes,
           alignedPosition: pos,
           valid: false,
-          reason: `Blocked by collision with nearby ${furn.name}`
+          reason: 'Grid cell already occupied'
         };
       }
     }
 
-    // Check collision against active (undemolished) walls
-    for (const wall of property.walls) {
-      if (wall.isDemolished) continue;
-
-      const start = new THREE.Vector3(...wall.startPoint);
-      const end = new THREE.Vector3(...wall.endPoint);
-      const wallMid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-      const dist = start.distanceTo(end);
-
-      // Estimate wall bounding box
-      const wallThickness = wall.thickness || 1.0;
-      const wallHeight = wall.height || 1.0;
-      const wSize = new THREE.Vector3(
-        Math.max(wallThickness, Math.abs(end.x - start.x)),
-        wallHeight,
-        Math.max(wallThickness, Math.abs(end.z - start.z))
-      );
-
-      // Wall center Y offset
-      const wallCenterY = (wall.startPoint[1] ?? 0) + wallHeight / 2;
-      wallMid.y = wallCenterY;
-
-      tempBoxExisting.setFromCenterAndSize(wallMid, wSize);
-      tempBoxExisting.expandByScalar(-0.04);
-
-      // If item is wall-mounted, skip self-wall collision check
-      if (requiredSurface === 'WallMounted' && tempBoxProposed.intersectsBox(tempBoxExisting)) {
-        continue;
-      }
+    // Check against existing furniture
+    for (const furn of property.furniture) {
+      const fCenter = new THREE.Vector3(...furn.position);
+      const fSize = new THREE.Vector3(1.0, 1.0, 1.0);
+      tempBoxExisting.setFromCenterAndSize(fCenter, fSize);
+      tempBoxExisting.expandByScalar(-0.06);
 
       if (tempBoxProposed.intersectsBox(tempBoxExisting)) {
         return {
           ...defaultRes,
           alignedPosition: pos,
           valid: false,
-          reason: 'Blocked by collision with wall block'
+          reason: 'Grid cell already occupied by furniture'
         };
       }
     }

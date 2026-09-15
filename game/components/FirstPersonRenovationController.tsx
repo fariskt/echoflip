@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { PointerLockControls } from '@react-three/drei';
 import { useRenovationStore } from '../../stores/renovationStore';
 import { validatePlacement } from '../utils/placementValidation';
 
@@ -14,35 +13,7 @@ interface FPSControllerProps {
 export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
   onPointerTargetChange
 }) => {
-  const { camera, scene, gl } = useThree();
-  const controlsRef = useRef<any>(null);
-
-  // Safely catch browser SecurityError when requesting pointer lock too quickly after exiting
-  useEffect(() => {
-    const domEl = gl.domElement;
-    if (!domEl) return;
-    const originalRequestPointerLock = domEl.requestPointerLock;
-    domEl.requestPointerLock = function (options?: PointerLockOptions): Promise<void> {
-      try {
-        const res = originalRequestPointerLock.call(domEl, options);
-        if (res && typeof (res as any).catch === 'function') {
-          (res as any).catch((err: any) => {
-            if (err?.name === 'SecurityError' || err?.message?.includes('exited')) {
-              console.warn('Pointer Lock cooldown active; click canvas again to lock.');
-            }
-          });
-          return res;
-        }
-        return Promise.resolve();
-      } catch (err: any) {
-        console.warn('Pointer Lock suppressed:', err);
-        return Promise.resolve();
-      }
-    };
-    return () => {
-      domEl.requestPointerLock = originalRequestPointerLock;
-    };
-  }, [gl]);
+  const { camera, scene, gl, pointer } = useThree();
 
   const activeProperty = useRenovationStore((state) => state.activeProperty);
   const equippedTool = useRenovationStore((state) => state.equippedTool);
@@ -71,7 +42,6 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
   const placeFurniture = useRenovationStore((state) => state.placeFurniture);
   const actionSignal = useRenovationStore((state) => state.actionSignal);
 
-  const [, setIsLocked] = useState(false);
   const spawnedPropertyIdRef = useRef<string | null>(null);
 
   // WASD + Fly movement state
@@ -94,27 +64,62 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
       if (activeProperty.spawnPoint) {
         camera.position.set(...activeProperty.spawnPoint);
       } else {
-        camera.position.set(0, 1.6, 6);
+        camera.position.set(0, 1.6, 20);
       }
       camera.lookAt(0, 1.6, 0);
     }
   }, [activeProperty, camera]);
 
-  // Reusable Tool Action execution (triggered on PC mouse click or Mobile Action button tap)
-  const executeToolAction = useCallback(() => {
-    raycaster.current.setFromCamera(new THREE.Vector2(0, 0), camera);
-    const intersects = raycaster.current.intersectObjects(scene.children, true);
+  const lastActionTimeRef = useRef<number>(0);
 
-    if (intersects.length > 0 && intersects[0].distance < 8.0) {
-      const hit = intersects[0];
+function findValidRaycastHit(intersects: THREE.Intersection[]): THREE.Intersection | null {
+  for (const hit of intersects) {
+    if (hit.distance >= 60.0) break;
+    let isGhostOrHelper = false;
+    let obj: THREE.Object3D | null = hit.object;
+    while (obj) {
+      if (
+        obj.userData?.isGhost ||
+        obj.userData?.type === 'ghost' ||
+        obj.name === 'ghost' ||
+        obj.type === 'LineSegments' ||
+        obj.type === 'GridHelper'
+      ) {
+        isGhostOrHelper = true;
+        break;
+      }
+      obj = obj.parent;
+    }
+    if (!isGhostOrHelper) return hit;
+  }
+  return null;
+}
+
+  // Reusable Tool Action execution (raycasting directly from mouse cursor position)
+  const executeToolAction = useCallback(() => {
+    const now = Date.now();
+    if (now - lastActionTimeRef.current < 150) {
+      return; // Single-click placement transaction lock
+    }
+    lastActionTimeRef.current = now;
+
+    // Raycast directly from center-screen crosshair Vector2(0, 0) (Minecraft-style targeting)
+    const centerPointer = new THREE.Vector2(0, 0);
+    raycaster.current.setFromCamera(centerPointer, camera);
+    const intersects = raycaster.current.intersectObjects(scene.children, true);
+    const hit = findValidRaycastHit(intersects);
+
+    if (hit) {
       let obj: THREE.Object3D | null = hit.object;
 
       while (obj && !obj.userData?.type && obj.parent && obj.parent !== scene) {
         obj = obj.parent;
       }
 
-      const userData = obj?.userData || {};
-      const hitNormal = hit.face?.normal ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0);
+      const userData = obj?.userData || hit.object?.userData || {};
+      const hitNormal = hit.face?.normal
+        ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
+        : new THREE.Vector3(0, 1, 0);
 
       if (equippedTool === 'inspect') {
         if (userData.type === 'furniture' && userData.id) {
@@ -138,6 +143,21 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
           paintWallSegment(userData.id);
         } else if (equippedTool === 'hammer') {
           demolishWall(userData.id);
+        } else if (equippedTool === 'wall_builder') {
+          const valRes = validatePlacement({
+            item: selectedWallBlock,
+            hitPoint: hit.point,
+            hitNormal,
+            hitUserData: userData,
+            cameraPosition: camera.position,
+            placementRotation,
+            property: activeProperty
+          });
+          if (!valRes.valid) {
+            useRenovationStore.getState().showToast(`⚠️ Placement Blocked: ${valRes.reason}`);
+            return;
+          }
+          buildWall(valRes.alignedPosition);
         } else if (equippedTool === 'furniture' && selectedFurniture) {
           const valRes = validatePlacement({
             item: selectedFurniture,
@@ -226,20 +246,106 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
         }
       }
     }
-  }, [activeProperty, buildWall, camera, changeFlooring, demolishWall, equippedTool, paintWallSegment, placeFurniture, placementRotation, repairFixture, scene, scrubDirtStain, selectedFurniture, selectedWallBlock]);
+  }, [activeProperty, buildWall, camera, changeFlooring, demolishWall, equippedTool, paintWallSegment, placeFurniture, placementRotation, pointer, repairFixture, scene, scrubDirtStain, selectedFurniture, selectedWallBlock]);
 
-  // Handle MOUSE CLICK for Renovation tool actions on PC
+  // Infinite Mouse Look (Pointer Lock + Hardware Movement Delta) & Tool Action Handler
   useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0 || !controlsRef.current || !controlsRef.current.isLocked) return;
-      executeToolAction();
+    let previousMouseX: number | null = null;
+    let previousMouseY: number | null = null;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Ignore mouse move if hovering over interactive UI buttons/overlays
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'BUTTON' || target.closest('button') || target.closest('.pointer-events-auto'))) {
+        previousMouseX = null;
+        previousMouseY = null;
+        return;
+      }
+
+      let deltaX = 0;
+      let deltaY = 0;
+
+      if (document.pointerLockElement === gl.domElement) {
+        deltaX = e.movementX || 0;
+        deltaY = e.movementY || 0;
+      } else if (e.movementX !== undefined && (e.movementX !== 0 || e.movementY !== 0)) {
+        deltaX = e.movementX;
+        deltaY = e.movementY;
+      } else if (previousMouseX !== null && previousMouseY !== null) {
+        deltaX = e.clientX - previousMouseX;
+        deltaY = e.clientY - previousMouseY;
+      }
+
+      previousMouseX = e.clientX;
+      previousMouseY = e.clientY;
+
+      if (Math.abs(deltaX) < 150 && Math.abs(deltaY) < 150 && (deltaX !== 0 || deltaY !== 0)) {
+        camera.rotation.order = 'YXZ';
+        const sensitivity = 0.003;
+        camera.rotation.y -= deltaX * sensitivity;
+        camera.rotation.x -= deltaY * sensitivity;
+        camera.rotation.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, camera.rotation.x));
+      }
     };
 
-    window.addEventListener('mousedown', handleMouseDown);
-    return () => window.removeEventListener('mousedown', handleMouseDown);
-  }, [executeToolAction]);
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'BUTTON' || target.closest('button') || target.closest('.pointer-events-auto'))) {
+        return;
+      }
 
-  // Handle Mobile Action Signal Triggering (Minecraft PE Action button)
+      // Engage Pointer Lock on 3D viewport canvas for 360 mouse look
+      if (document.pointerLockElement !== gl.domElement) {
+        try {
+          gl.domElement.requestPointerLock();
+        } catch {}
+      }
+
+      if (e.button === 2) {
+        // RIGHT CLICK: Glass ghost preview orientation fit check (rotates ghost 90° to check fit)
+        e.preventDefault();
+        rotatePlacementYaw(90);
+        useRenovationStore.getState().showToast('🔮 Glass Ghost Preview: Rotated 90° [Left-Click to place]');
+      } else if (e.button === 0) {
+        // ONLY LEFT CLICK PLACES THE ITEM / BLOCK INTO THE WORLD!
+        executeToolAction();
+      }
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'BUTTON' || target.closest('button') || target.closest('.pointer-events-auto'))) {
+        return;
+      }
+
+      // Smooth scroll wheel zoom in / zoom out along camera look vector
+      const zoomStep = Math.max(-2.5, Math.min(2.5, -e.deltaY * 0.012));
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      camera.position.addScaledVector(dir, zoomStep);
+      camera.position.y = Math.max(0.5, Math.min(30.0, camera.position.y));
+    };
+
+    const domEl = gl.domElement;
+    window.addEventListener('mousemove', handleMouseMove);
+    domEl.addEventListener('mousedown', handleMouseDown);
+    domEl.addEventListener('contextmenu', handleContextMenu);
+    domEl.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      domEl.removeEventListener('mousedown', handleMouseDown);
+      domEl.removeEventListener('contextmenu', handleContextMenu);
+      domEl.removeEventListener('wheel', handleWheel);
+    };
+  }, [camera, executeToolAction, gl.domElement]);
+
+  // Handle Mobile Action Signal Triggering
   const prevActionSignalRef = useRef(actionSignal);
   useEffect(() => {
     if (actionSignal !== prevActionSignalRef.current) {
@@ -248,15 +354,13 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
     }
   }, [actionSignal, executeToolAction]);
 
-  // Mobile Touch Drag Camera Look Handler (Minecraft PE touch camera pitch/yaw rotation)
+  // Mobile Touch Drag Camera Look Handler
   useEffect(() => {
     let lookTouchId: number | null = null;
     let lastX = 0;
     let lastY = 0;
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (controlsRef.current?.isLocked) return;
-
       for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i];
         if (touch.clientX > window.innerWidth * 0.35 && lookTouchId === null) {
@@ -273,7 +377,7 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (lookTouchId === null || controlsRef.current?.isLocked) return;
+      if (lookTouchId === null) return;
 
       for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i];
@@ -316,7 +420,7 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
     };
   }, [camera]);
 
-  // Keyboard controls listener (PC WASD controls - UNTOUCHED)
+  // Keyboard controls listener (PC WASD controls)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
@@ -393,15 +497,25 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
         case 'KeyF':
           setCatalogOpen(true);
           break;
-        case 'Escape':
-          if (selectedFurniture || equippedTool === 'furniture') {
-            useRenovationStore.getState().setSelectedFurniture(null);
+        case 'Escape': {
+          const store = useRenovationStore.getState();
+          const isAnyMenuOpen = store.isCatalogOpen || store.isPaintMenuOpen || store.isContractMenuOpen;
+          const hasSelectedObject = !!store.selectedFurniture || !!store.selectedPlacedFurnitureId || !!store.selectedPlacedWallId;
+
+          if (equippedTool !== 'inspect' || isAnyMenuOpen || hasSelectedObject) {
+            store.setSelectedFurniture(null);
+            store.setSelectedPlacedFurnitureId(null);
+            store.setSelectedPlacedWallId(null);
+            setCatalogOpen(false);
+            setPaintMenuOpen(false);
+            setContractMenuOpen(false);
             setEquippedTool('inspect');
-            useRenovationStore.getState().showToast('Deselected object (Selection Cancelled)');
+            store.showToast('Tool & Selection cancelled (Reset to Default Inspect)');
           } else {
             setPaused(!isPaused);
           }
           break;
+        }
       }
     };
 
@@ -446,7 +560,7 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
     };
   }, [isPaused, resetPlacementRotation, rollPlacementRoll, rotatePlacementYaw, setCatalogOpen, setContractMenuOpen, setEquippedTool, setPaintMenuOpen, setPaused, tiltPlacementPitch]);
 
-  // Frame tick loop: WASD locomotion + Touch D-Pad / Analog Joystick & vertical elevation
+  // Frame tick loop: WASD locomotion & mouse cursor raycasting
   useFrame((_, delta) => {
     const mobileMove = useRenovationStore.getState().mobileMoveState;
 
@@ -483,15 +597,10 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
       velocity.current.x -= inputVec.x * speed * delta * 12 * mag;
     }
 
-    if (controlsRef.current) {
-      controlsRef.current.moveForward(-velocity.current.z * delta);
-      controlsRef.current.moveRight(-velocity.current.x * delta);
-    } else {
-      camera.translateZ(velocity.current.z * delta);
-      camera.translateX(-velocity.current.x * delta);
-    }
+    camera.translateZ(velocity.current.z * delta);
+    camera.translateX(-velocity.current.x * delta);
 
-    // Apply Touch Drag Camera Rotation (Yaw & Pitch)
+    // Apply Touch Drag Camera Rotation
     const lookDelta = useRenovationStore.getState().consumeMobileLookDelta();
     if (lookDelta.x !== 0 || lookDelta.y !== 0) {
       camera.rotation.order = 'YXZ';
@@ -518,19 +627,24 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
     }
     camera.position.y = Math.max(0.5, Math.min(30.0, camera.position.y));
 
-    // Raycast forward from center crosshair
-    raycaster.current.setFromCamera(new THREE.Vector2(0, 0), camera);
+    // Raycast continuously from center-screen crosshair Vector2(0,0) (Minecraft-style targeting)
+    const centerPointer = new THREE.Vector2(0, 0);
+    raycaster.current.setFromCamera(centerPointer, camera);
     const intersects = raycaster.current.intersectObjects(scene.children, true);
+    const hit = findValidRaycastHit(intersects);
 
-    if (intersects.length > 0 && intersects[0].distance < 8.0) {
-      const hit = intersects[0];
+    if (hit) {
       let obj: THREE.Object3D | null = hit.object;
       while (obj && !obj.userData?.type && obj.parent && obj.parent !== scene) {
         obj = obj.parent;
       }
       const userData = obj?.userData || hit.object?.userData || {};
+      const hitNormal = hit.face?.normal
+        ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
+        : null;
+
       if (onPointerTargetChange) {
-        onPointerTargetChange(hit.point, hit.face?.normal || null, userData);
+        onPointerTargetChange(hit.point, hitNormal, userData);
       }
     } else {
       if (onPointerTargetChange) {
@@ -539,11 +653,5 @@ export const FirstPersonRenovationController: React.FC<FPSControllerProps> = ({
     }
   });
 
-  return (
-    <PointerLockControls
-      ref={controlsRef}
-      onLock={() => setIsLocked(true)}
-      onUnlock={() => setIsLocked(false)}
-    />
-  );
+  return null;
 };
