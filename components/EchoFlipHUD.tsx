@@ -21,7 +21,8 @@ import {
   Wrench,
   Image,
   DoorOpen,
-  AppWindow
+  AppWindow,
+  Map
 } from 'lucide-react';
 import {
   useRenovationStore,
@@ -39,7 +40,12 @@ export const EchoFlipHUD: React.FC = () => {
   const [isAssetDebugOpen, setIsAssetDebugOpen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<'draw' | 'finish' | 'furniture' | 'doors'>('draw');
   const [isLeftPanelOpen, setIsLeftPanelOpen] = React.useState<boolean>(true);
-  const [isRightPanelOpen, setIsRightPanelOpen] = React.useState<boolean>(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 850;
+    }
+    return false;
+  });
 
   const appMode = useRenovationStore((state) => state.appMode);
   const setAppMode = useRenovationStore((state) => state.setAppMode);
@@ -273,6 +279,20 @@ export const EchoFlipHUD: React.FC = () => {
 
         {/* Right Working Mode Switcher */}
         <div className="flex items-center space-x-2">
+          {/* Toggle 2D Schematic Map Button */}
+          <button
+            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border font-semibold text-xs transition ${
+              isRightPanelOpen
+                ? 'bg-blue-600 text-white border-blue-600 shadow'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+            }`}
+            title="Toggle 2D Drone Schematic Map & Inspector"
+          >
+            <Map className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">2D Map</span>
+          </button>
+
           <button
             onClick={() => setAppMode(appMode === 'renovation' ? 'editor' : 'renovation')}
             className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-300 transition"
@@ -457,8 +477,17 @@ export const EchoFlipHUD: React.FC = () => {
         {/* ----------------------------------------------------------------------- */}
         <div className="pointer-events-auto flex h-full z-30">
           {isRightPanelOpen && (
-            <div className="w-72 bg-white/95 border-l border-slate-200 shadow-xl backdrop-blur-md flex flex-col justify-between overflow-y-auto p-4 text-slate-800">
+            <div className="w-72 max-w-[85vw] bg-white/95 border-l border-slate-200 shadow-xl backdrop-blur-md flex flex-col justify-between overflow-y-auto p-4 text-slate-800">
               <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <div className="flex items-center space-x-1.5 font-extrabold text-sm text-slate-900">
+                    <Map className="w-4 h-4 text-blue-600" />
+                    <span>2D Schematic Map</span>
+                  </div>
+                  <button onClick={() => setIsRightPanelOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
                 {/* Top Real-Time 2D Drone Schematic Map */}
                 <div className="w-full h-52 rounded-2xl overflow-hidden shadow-md border border-slate-300">
                   <SchematicMap />
