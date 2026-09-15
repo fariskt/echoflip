@@ -88,6 +88,7 @@ const MinecraftGhostBlockPreview: React.FC<{
   };
 
 const RoofMeshRenderer: React.FC<{ roomBlock: any }> = ({ roomBlock }) => {
+  if (roomBlock.type === 'wall') return null;
   const isDedicatedRoof = roomBlock.type === 'roof';
   const roofStyle = roomBlock.roofType || (isDedicatedRoof ? 'flat' : 'none');
   if (roofStyle === 'none') return null;
