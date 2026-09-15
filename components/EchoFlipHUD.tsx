@@ -372,14 +372,6 @@ export const EchoFlipHUD: React.FC = () => {
       <div className={`pointer-events-auto fixed ${isTopBarOpen ? 'top-28 sm:top-14' : 'top-3.5'} left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 bg-slate-900/90 text-white px-4 py-1.5 rounded-full border border-slate-700/80 shadow-2xl text-xs font-semibold backdrop-blur-md max-w-[92vw] truncate transition-all duration-300`}>
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
         <span className="truncate">{getToolActionPrompt()}</span>
-        {roomBlockStartPoint && (
-          <button
-            onClick={() => setRoomBlockStartPoint(null)}
-            className="ml-2 px-2 py-0.5 rounded bg-red-500/80 hover:bg-red-600 text-[10px] font-bold text-white shrink-0 shadow"
-          >
-            Cancel [ESC]
-          </button>
-        )}
       </div>
 
       {/* Mobile Portrait Landscape Overlay */}

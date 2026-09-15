@@ -193,22 +193,34 @@ export const RoomBlockCreationTool: React.FC<RoomBlockCreationToolProps> = ({
         <lineBasicMaterial color={isValid ? '#0f172a' : '#ef4444'} linewidth={2} />
       </lineSegments>
 
-      {/* Live Dimension Overlay HTML Badge */}
+      {/* Live Top-Right Dimension Overlay HTML Badge */}
       {roomBlockStartPoint && (
-        <Html
-          position={[
-            (roomBlockStartPoint[0] + currentEndPoint[0]) / 2,
-            roomBlockHeight + 0.6,
-            (roomBlockStartPoint[2] + currentEndPoint[2]) / 2
-          ]}
-          center
-        >
-          <div className="pointer-events-none flex flex-col items-center bg-slate-950/90 text-white text-xs px-3 py-1.5 rounded-xl border border-sky-500/40 shadow-2xl backdrop-blur-md">
-            <span className="font-bold text-sky-400">{dimText}</span>
-            <span className="text-[10px] text-slate-300">WALL SIDE 2-POINT MODE</span>
+        <Html fullscreen zIndexRange={[100, 0]}>
+          <div className="pointer-events-auto fixed top-24 right-4 sm:top-16 sm:right-6 z-40 flex flex-col items-end bg-slate-950/95 text-white px-4 py-2.5 rounded-2xl border border-sky-500/50 shadow-2xl backdrop-blur-md whitespace-nowrap min-w-[190px] transition-all duration-200">
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse shrink-0" />
+              <span className="font-extrabold text-sm text-sky-400 tracking-tight">{dimText}</span>
+            </div>
+
+            <span className="text-[10px] font-extrabold text-slate-400 tracking-wider uppercase mt-0.5">
+              WALL SIDE 2-POINT MODE
+            </span>
+
             {!isValid && (
-              <span className="text-[10px] text-red-400 font-semibold mt-0.5">{validationMessage}</span>
+              <div className="text-[11px] text-red-400 font-bold bg-red-950/80 px-2.5 py-1 rounded-lg border border-red-800/60 mt-1.5 flex items-center space-x-1">
+                <span>⚠️ {validationMessage || 'Invalid placement'}</span>
+              </div>
             )}
+
+            <button
+              onClick={() => {
+                setRoomBlockStartPoint(null);
+                showToast('Wall Side Creation Cancelled');
+              }}
+              className="mt-2 px-3 py-1 rounded-lg bg-red-600/90 hover:bg-red-700 active:scale-95 text-[11px] font-bold text-white shadow transition"
+            >
+              Cancel Corner [ESC]
+            </button>
           </div>
         </Html>
       )}
