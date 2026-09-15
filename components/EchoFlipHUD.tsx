@@ -24,7 +24,9 @@ import {
   AppWindow,
   Map,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Move,
+  RotateCw
 } from 'lucide-react';
 import {
   useRenovationStore,
@@ -110,6 +112,25 @@ export const EchoFlipHUD: React.FC = () => {
   const gridSnapSize = useRenovationStore((state) => state.gridSnapSize);
   const toggleGridSnap = useRenovationStore((state) => state.toggleGridSnap);
   const setGridSnapSize = useRenovationStore((state) => state.setGridSnapSize);
+
+  const moveSelectedObject = useRenovationStore((state) => state.moveSelectedObject);
+  const duplicateSelectedObject = useRenovationStore((state) => state.duplicateSelectedObject);
+  const deleteSelectedObject = useRenovationStore((state) => state.deleteSelectedObject);
+  const transformGizmoMode = useRenovationStore((state) => state.transformGizmoMode);
+  const setTransformGizmoMode = useRenovationStore((state) => state.setTransformGizmoMode);
+
+  const selectedPlacedFurniture = activeProperty?.furniture.find((f) => f.id === selectedPlacedFurnitureId);
+  const selectedPlacedWall = activeProperty?.walls.find((w) => w.id === selectedPlacedWallId);
+  const selectedPlacedBlock = activeProperty?.roomBlocks?.find((b) => b.id === selectedPlacedBlockId);
+
+  const hasSelectedObject = !!(selectedPlacedFurniture || selectedPlacedWall || selectedPlacedBlock);
+  const selectedObjectName = selectedPlacedFurniture?.name || (selectedPlacedWall ? `Wall Block (${selectedPlacedWall.blockType || 'Drywall'})` : (selectedPlacedBlock ? `Room Block (${selectedPlacedBlock.name || selectedPlacedBlock.type})` : null));
+
+  React.useEffect(() => {
+    if (hasSelectedObject) {
+      setIsRightPanelOpen(true);
+    }
+  }, [hasSelectedObject]);
 
   const [isPortrait, setIsPortrait] = React.useState<boolean>(false);
   const [selectedCatalogCategory, setSelectedCatalogCategory] = React.useState<string>('all');
@@ -529,163 +550,281 @@ export const EchoFlipHUD: React.FC = () => {
         )}
 
         {/* ----------------------------------------------------------------------- */}
-        {/* RIGHT PROPERTY & FLOOR INSPECTOR PANEL */}
+        {/* RIGHT PROPERTY & FLOOR INSPECTOR PANEL / BLENDER 3D OBJECT INSPECTOR */}
         {/* ----------------------------------------------------------------------- */}
         <div className="pointer-events-auto flex h-full z-30">
           {isRightPanelOpen && (
-            <div className="w-72 max-w-[85vw] bg-white/95 border-l border-slate-200 shadow-xl backdrop-blur-md flex flex-col justify-between overflow-y-auto p-4 text-slate-800">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <div className="flex items-center space-x-1.5 font-extrabold text-sm text-slate-900">
-                    <Map className="w-4 h-4 text-blue-600" />
-                    <span>2D Schematic Map</span>
-                  </div>
-                  <button onClick={() => setIsRightPanelOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                {/* Top Real-Time 2D Drone Schematic Map */}
-                <div className="w-full h-52 rounded-2xl overflow-hidden shadow-md border border-slate-300">
-                  <SchematicMap />
-                </div>
-
-                {/* Working Basic Parameters Section */}
-                <div className="border-t border-slate-200 pt-3 space-y-3">
-                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Basic Parameters</h3>
-
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-600 font-medium">Interior area</span>
-                    <span className="font-mono font-bold bg-slate-100 px-2 py-1 rounded text-slate-800">3,600 m²</span>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs text-slate-600 font-medium mb-1">
-                      <span>Room height</span>
-                      <span className="font-mono font-bold text-blue-600">{(roomBlockHeight * 1000).toFixed(0)} mm</span>
+            <div className="w-80 max-w-[85vw] bg-white/95 border-l border-slate-200 shadow-xl backdrop-blur-md flex flex-col justify-between overflow-y-auto p-4 text-slate-800 transition-all">
+              {hasSelectedObject ? (
+                /* ======================================================================= */
+                /* BLENDER 3D OBJECT INSPECTOR (Replaces 2D Map when object is selected)  */
+                /* ======================================================================= */
+                <div className="space-y-4">
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow">
+                        {selectedPlacedFurniture ? '🛋️' : selectedPlacedWall ? '🧱' : '📦'}
+                      </div>
+                      <div className="truncate max-w-[170px]">
+                        <span className="text-[10px] uppercase font-extrabold text-blue-600 tracking-wider">Blender 3D Inspector</span>
+                        <h3 className="text-sm font-bold text-slate-900 truncate">{selectedObjectName}</h3>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="1.0"
-                      max="6.0"
-                      step="0.1"
-                      value={roomBlockHeight}
-                      onChange={(e) => setRoomBlockHeight(parseFloat(e.target.value))}
-                      className="w-full accent-blue-600 cursor-pointer"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs text-slate-600 font-medium mb-1">
-                      <span>Slab thickness</span>
-                      <span className="font-mono font-bold text-blue-600">{(roomBlockWallThickness * 1000).toFixed(0)} mm</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.05"
-                      max="0.5"
-                      step="0.05"
-                      value={roomBlockWallThickness}
-                      onChange={(e) => setRoomBlockWallThickness(parseFloat(e.target.value))}
-                      className="w-full accent-blue-600 cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                {/* Working Grid Snap Controls */}
-                <div className="border-t border-slate-200 pt-3 space-y-3">
-                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Grid Controls</h3>
-
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-600 font-medium">Grid Snap</span>
                     <button
-                      onClick={() => toggleGridSnap()}
-                      className={`px-2.5 py-1 rounded-lg border font-bold text-xs ${gridSnapEnabled ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-600 border-slate-300'}`}
+                      onClick={() => {
+                        setSelectedPlacedFurnitureId(null);
+                        setSelectedPlacedWallId(null);
+                        setSelectedPlacedBlockId(null);
+                      }}
+                      className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100"
+                      title="Deselect (ESC)"
                     >
-                      {gridSnapEnabled ? `${gridSnapSize}m` : 'OFF'}
+                      <X className="w-5 h-5" />
                     </button>
                   </div>
 
-                  {gridSnapEnabled && (
-                    <div className="flex items-center space-x-1">
-                      {[0.25, 0.5, 1.0].map((sz) => (
-                        <button
-                          key={sz}
-                          onClick={() => setGridSnapSize(sz)}
-                          className={`flex-1 py-1 rounded border text-xs font-mono font-bold ${gridSnapSize === sz ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
-                        >
-                          {sz}m
-                        </button>
-                      ))}
+                  {/* Blender Transform Mode Switcher */}
+                  <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                    <button
+                      onClick={() => setTransformGizmoMode('translate')}
+                      className={`flex-1 py-1.5 rounded-xl font-bold text-xs flex items-center justify-center space-x-1 transition ${
+                        transformGizmoMode === 'translate' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      <Move className="w-3.5 h-3.5" />
+                      <span>Move (G)</span>
+                    </button>
+                    <button
+                      onClick={() => setTransformGizmoMode('rotate')}
+                      className={`flex-1 py-1.5 rounded-xl font-bold text-xs flex items-center justify-center space-x-1 transition ${
+                        transformGizmoMode === 'rotate' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      <RotateCw className="w-3.5 h-3.5" />
+                      <span>Rotate (R)</span>
+                    </button>
+                  </div>
+
+                  {/* Visual Axis Arrow Controls for Move */}
+                  {transformGizmoMode === 'translate' && (
+                    <div className="space-y-3 border-t border-slate-200 pt-3">
+                      <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Visual Axis Move Hints</h4>
+
+                      {/* X Axis Red */}
+                      <div className="bg-red-50/80 border border-red-200 rounded-2xl p-2.5 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-bold text-red-700">
+                          <span className="flex items-center space-x-1">
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+                            <span>X Axis (Side ↔)</span>
+                          </span>
+                          <span className="font-mono text-[11px]">Red Arrow</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <button onClick={() => moveSelectedObject(-0.5, 0, 0)} className="py-1 rounded bg-white hover:bg-red-100 border border-red-200 text-red-800 font-bold text-xs shadow-sm">
+                            ◄ -0.5m Left
+                          </button>
+                          <button onClick={() => moveSelectedObject(0.5, 0, 0)} className="py-1 rounded bg-white hover:bg-red-100 border border-red-200 text-red-800 font-bold text-xs shadow-sm">
+                            +0.5m Right ►
+                          </button>
+                          <button onClick={() => moveSelectedObject(-0.1, 0, 0)} className="py-1 rounded bg-white hover:bg-red-100 border border-red-200 text-red-800 font-semibold text-[11px]">
+                            ◄ -0.1m
+                          </button>
+                          <button onClick={() => moveSelectedObject(0.1, 0, 0)} className="py-1 rounded bg-white hover:bg-red-100 border border-red-200 text-red-800 font-semibold text-[11px]">
+                            +0.1m ►
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Y Axis Green */}
+                      <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-2.5 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-bold text-emerald-700">
+                          <span className="flex items-center space-x-1">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                            <span>Y Axis (Height ↕)</span>
+                          </span>
+                          <span className="font-mono text-[11px]">Green Arrow</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <button onClick={() => moveSelectedObject(0, 0.5, 0)} className="py-1 rounded bg-white hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold text-xs shadow-sm">
+                            ▲ +0.5m Up
+                          </button>
+                          <button onClick={() => moveSelectedObject(0, -0.5, 0)} className="py-1 rounded bg-white hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold text-xs shadow-sm">
+                            -0.5m Down ▼
+                          </button>
+                          <button onClick={() => moveSelectedObject(0, 0.1, 0)} className="py-1 rounded bg-white hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-[11px]">
+                            ▲ +0.1m
+                          </button>
+                          <button onClick={() => moveSelectedObject(0, -0.1, 0)} className="py-1 rounded bg-white hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-[11px]">
+                            -0.1m ▼
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Z Axis Blue */}
+                      <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-2.5 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-bold text-blue-700">
+                          <span className="flex items-center space-x-1">
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
+                            <span>Z Axis (Depth ⤢)</span>
+                          </span>
+                          <span className="font-mono text-[11px]">Blue Arrow</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <button onClick={() => moveSelectedObject(0, 0, -0.5)} className="py-1 rounded bg-white hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold text-xs shadow-sm">
+                            ⇱ -0.5m Fwd
+                          </button>
+                          <button onClick={() => moveSelectedObject(0, 0, 0.5)} className="py-1 rounded bg-white hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold text-xs shadow-sm">
+                            +0.5m Back ⇲
+                          </button>
+                          <button onClick={() => moveSelectedObject(0, 0, -0.1)} className="py-1 rounded bg-white hover:bg-blue-100 border border-blue-200 text-blue-800 font-semibold text-[11px]">
+                            ⇱ -0.1m
+                          </button>
+                          <button onClick={() => moveSelectedObject(0, 0, 0.1)} className="py-1 rounded bg-white hover:bg-blue-100 border border-blue-200 text-blue-800 font-semibold text-[11px]">
+                            +0.1m ⇲
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
-                </div>
 
-                {/* Working Object Rotation & Transforms */}
-                {(equippedTool === 'furniture' || equippedTool === 'wall_builder' || selectedFurniture) && (
-                  <div className="border-t border-slate-200 pt-3 space-y-2">
-                    <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Transform</h3>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <button onClick={() => rotatePlacementYaw(45)} className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg border">
-                        Rotate +45° (R)
-                      </button>
-                      <button onClick={() => rotatePlacementYaw(90)} className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg border">
-                        Rotate +90°
-                      </button>
-                      <button onClick={() => tiltPlacementPitch(45)} className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg border">
-                        Tilt Pitch (T)
-                      </button>
-                      <button onClick={() => rollPlacementRoll(45)} className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg border">
-                        Roll Roll (G)
-                      </button>
+                  {/* Visual Rotation Arc Controls */}
+                  {transformGizmoMode === 'rotate' && (
+                    <div className="space-y-3 border-t border-slate-200 pt-3">
+                      <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Visual Rotation Controls</h4>
+                      <div className="space-y-2 text-xs">
+                        <div>
+                          <label className="font-bold text-slate-700 text-[11px] mb-1 block">Yaw Y-Axis (Horizontal Turn)</label>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <button onClick={() => rotatePlacementYaw(-45)} className="py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border">↺ -45°</button>
+                            <button onClick={() => rotatePlacementYaw(45)} className="py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border">+45° ↻</button>
+                            <button onClick={() => rotatePlacementYaw(-90)} className="py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border">↺ -90°</button>
+                            <button onClick={() => rotatePlacementYaw(90)} className="py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border">+90° ↻</button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 text-[11px] mb-1 block">Pitch X-Axis (Tilt Up/Down)</label>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <button onClick={() => tiltPlacementPitch(-15)} className="py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border">↶ -15° Pitch</button>
+                            <button onClick={() => tiltPlacementPitch(15)} className="py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border">+15° Pitch ↷</button>
+                          </div>
+                        </div>
+                        <button onClick={resetPlacementRotation} className="w-full py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-amber-600 font-extrabold text-xs border border-amber-300">
+                          Reset Rotation to [0°, 0°, 0°]
+                        </button>
+                      </div>
                     </div>
-                    <button onClick={resetPlacementRotation} className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border">
-                      Reset Rotation
+                  )}
+
+                  {/* Quick Action Footer */}
+                  <div className="border-t border-slate-200 pt-3 space-y-2">
+                    <button
+                      onClick={() => duplicateSelectedObject()}
+                      className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition shadow"
+                    >
+                      <Copy className="w-4 h-4" />
+                      <span>Duplicate Object</span>
+                    </button>
+                    <button
+                      onClick={() => deleteSelectedObject()}
+                      className="w-full py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-bold text-xs flex items-center justify-center space-x-1.5 transition border border-red-200"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete / Demolish</span>
                     </button>
                   </div>
-                )}
+                </div>
+              ) : (
+                /* ======================================================================= */
+                /* DEFAULT 2D SCHEMATIC MAP & HOUSE PARAMETERS (When no object selected)   */
+                /* ======================================================================= */
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <div className="flex items-center space-x-1.5 font-extrabold text-sm text-slate-900">
+                      <Map className="w-4 h-4 text-blue-600" />
+                      <span>2D Schematic Map</span>
+                    </div>
+                    <button onClick={() => setIsRightPanelOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {/* Top Real-Time 2D Drone Schematic Map */}
+                  <div className="w-full h-52 rounded-2xl overflow-hidden shadow-md border border-slate-300">
+                    <SchematicMap />
+                  </div>
 
-                {/* Rect Wall Options Panel */}
-                {equippedTool === 'room_builder' && (
-                  <div className="border-t border-slate-200 pt-3 space-y-2">
-                    <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Rect Wall Settings</h3>
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-600 uppercase">Block Type</label>
-                      <div className="grid grid-cols-2 gap-1 text-xs font-semibold">
-                        {[
-                          { id: 'full_room', label: 'Full Room' },
-                          { id: 'empty_room', label: 'Perimeter' },
-                          { id: 'wall', label: 'Wall Block' },
-                          { id: 'floor', label: 'Floor Slab' },
-                          { id: 'foundation', label: 'Foundation' }
-                        ].map((typeItem) => (
-                          <button
-                            key={typeItem.id}
-                            onClick={() => setActiveRoomBlockType(typeItem.id as any)}
-                            className={`px-2 py-1 rounded border text-[11px] font-bold transition ${activeRoomBlockType === typeItem.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
-                          >
-                            {typeItem.label}
-                          </button>
-                        ))}
-                      </div>
+                  {/* Working Basic Parameters Section */}
+                  <div className="border-t border-slate-200 pt-3 space-y-3">
+                    <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Basic Parameters</h3>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-600 font-medium">Interior area</span>
+                      <span className="font-mono font-bold bg-slate-100 px-2 py-1 rounded text-slate-800">3,600 m²</span>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-600 uppercase">Wall Height ({roomBlockHeight}m)</label>
-                      <div className="flex items-center space-x-1">
-                        {[2.0, 2.8, 3.5, 4.0].map((h) => (
-                          <button
-                            key={h}
-                            onClick={() => setRoomBlockHeight(h)}
-                            className={`flex-1 py-1 rounded border text-xs font-mono font-bold ${roomBlockHeight === h ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
-                          >
-                            {h}m
-                          </button>
-                        ))}
+                    <div>
+                      <div className="flex justify-between text-xs text-slate-600 font-medium mb-1">
+                        <span>Room height</span>
+                        <span className="font-mono font-bold text-blue-600">{(roomBlockHeight * 1000).toFixed(0)} mm</span>
                       </div>
+                      <input
+                        type="range"
+                        min="1.0"
+                        max="6.0"
+                        step="0.1"
+                        value={roomBlockHeight}
+                        onChange={(e) => setRoomBlockHeight(parseFloat(e.target.value))}
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs text-slate-600 font-medium mb-1">
+                        <span>Slab thickness</span>
+                        <span className="font-mono font-bold text-blue-600">{(roomBlockWallThickness * 1000).toFixed(0)} mm</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.05"
+                        max="0.5"
+                        step="0.05"
+                        value={roomBlockWallThickness}
+                        onChange={(e) => setRoomBlockWallThickness(parseFloat(e.target.value))}
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
                     </div>
                   </div>
-                )}
-              </div>
+
+                  {/* Working Grid Snap Controls */}
+                  <div className="border-t border-slate-200 pt-3 space-y-3">
+                    <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Grid Controls</h3>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-600 font-medium">Grid Snap</span>
+                      <button
+                        onClick={() => toggleGridSnap()}
+                        className={`px-2.5 py-1 rounded-lg border font-bold text-xs ${gridSnapEnabled ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-600 border-slate-300'}`}
+                      >
+                        {gridSnapEnabled ? `${gridSnapSize}m` : 'OFF'}
+                      </button>
+                    </div>
+
+                    {gridSnapEnabled && (
+                      <div className="flex items-center space-x-1">
+                        {[0.25, 0.5, 1.0].map((sz) => (
+                          <button
+                            key={sz}
+                            onClick={() => setGridSnapSize(sz)}
+                            className={`flex-1 py-1 rounded border text-xs font-mono font-bold ${gridSnapSize === sz ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
+                          >
+                            {sz}m
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

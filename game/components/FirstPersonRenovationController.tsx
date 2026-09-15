@@ -519,6 +519,14 @@ function findValidRaycastHit(intersects: THREE.Intersection[]): THREE.Intersecti
         case 'KeyX':
           resetPlacementRotation();
           break;
+        case 'Delete':
+        case 'Backspace': {
+          const store = useRenovationStore.getState();
+          if (store.selectedPlacedFurnitureId || store.selectedPlacedWallId || store.selectedPlacedBlockId) {
+            store.deleteSelectedObject();
+          }
+          break;
+        }
         case 'Digit1':
           setEquippedTool('inspect');
           break;

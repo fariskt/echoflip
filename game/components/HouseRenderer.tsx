@@ -5,6 +5,7 @@ import { useRenovationStore } from '../../stores/renovationStore';
 import { validatePlacement } from '../utils/placementValidation';
 import { GLTFModelRenderer } from './GLTFModelRenderer';
 import { PRELOADED_ASSETS } from '../core/assetRegistry';
+import { TransformControls } from '@react-three/drei';
 
 interface HouseRendererProps {
   pointerPosition?: THREE.Vector3 | null;
@@ -124,6 +125,11 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
   const setSelectedPlacedWallId = useRenovationStore((state) => state.setSelectedPlacedWallId);
 
   const selectedPlacedBlockId = useRenovationStore((state) => state.selectedPlacedBlockId);
+
+  const transformGizmoMode = useRenovationStore((state) => state.transformGizmoMode);
+  const updateSelectedObjectPosition = useRenovationStore((state) => state.updateSelectedObjectPosition);
+  const updateSelectedObjectRotation = useRenovationStore((state) => state.updateSelectedObjectRotation);
+  const selectedTargetGroupRef = useRef<THREE.Group>(null);
 
   const gridSnapSize = useRenovationStore((state) => state.gridSnapSize);
 
@@ -415,6 +421,31 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
         const isSelectedPlaced = selectedPlacedFurnitureId === item.id;
         const modelUrl = resolveModelPath(item);
 
+        if (isSelectedPlaced) {
+          return (
+            <MinecraftPopWrapper key={item.id}>
+              <group ref={selectedTargetGroupRef}>
+                <GLTFModelRenderer
+                  modelPath={modelUrl}
+                  category={item.category}
+                  assetId={item.catalogId || item.id}
+                  position={item.position}
+                  rotation={radRotation}
+                  scale={item.scale || [1, 1, 1]}
+                  isSelected={isSelectedPlaced}
+                  userData={{ type: 'furniture', id: item.id, name: item.name, category: item.category, price: item.price }}
+                  onClick={(e: ThreeEvent<MouseEvent>) => {
+                    e.stopPropagation();
+                    if (e.button !== 0) return;
+                    setSelectedPlacedFurnitureId(item.id);
+                    useRenovationStore.getState().showToast(`🔍 Selected ${item.name}! Use Blender Inspector or 3D Gizmo to Move & Rotate`);
+                  }}
+                />
+              </group>
+            </MinecraftPopWrapper>
+          );
+        }
+
         return (
           <MinecraftPopWrapper key={item.id}>
             <GLTFModelRenderer
@@ -430,7 +461,7 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
                 e.stopPropagation();
                 if (e.button !== 0) return;
                 setSelectedPlacedFurnitureId(item.id);
-                useRenovationStore.getState().showToast(`🔍 Selected ${item.name}! Use [R] Yaw, [T] Tilt, [G] Roll to rotate`);
+                useRenovationStore.getState().showToast(`🔍 Selected ${item.name}! Use Blender Inspector or 3D Gizmo to Move & Rotate`);
               }}
             />
           </MinecraftPopWrapper>
@@ -506,6 +537,28 @@ export const HouseRenderer: React.FC<HouseRendererProps> = ({
             />
           </mesh>
         </group>
+      )}
+
+      {/* 3D Blender Interactive Transform Controls Gizmo */}
+      {selectedTargetGroupRef.current && (selectedPlacedFurnitureId || selectedPlacedWallId) && (
+        <TransformControls
+          object={selectedTargetGroupRef.current}
+          mode={transformGizmoMode}
+          size={0.75}
+          onObjectChange={() => {
+            if (selectedTargetGroupRef.current) {
+              const p = selectedTargetGroupRef.current.position;
+              const r = selectedTargetGroupRef.current.rotation;
+              const rotDeg: [number, number, number] = [
+                Math.round((r.x * 180) / Math.PI),
+                Math.round((r.y * 180) / Math.PI),
+                Math.round((r.z * 180) / Math.PI)
+              ];
+              updateSelectedObjectPosition([p.x, p.y, p.z]);
+              updateSelectedObjectRotation(rotDeg);
+            }
+          }}
+        />
       )}
     </group>
   );

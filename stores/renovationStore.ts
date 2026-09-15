@@ -205,6 +205,14 @@ export interface RenovationState {
 
   showToast: (msg: string) => void;
   completeContract: () => void;
+
+  transformGizmoMode: 'translate' | 'rotate';
+  setTransformGizmoMode: (mode: 'translate' | 'rotate') => void;
+  moveSelectedObject: (dx?: number, dy?: number, dz?: number) => void;
+  updateSelectedObjectPosition: (pos: [number, number, number]) => void;
+  updateSelectedObjectRotation: (rot: [number, number, number]) => void;
+  duplicateSelectedObject: () => void;
+  deleteSelectedObject: () => void;
 }
 
 export const useRenovationStore = create<RenovationState>((set, get) => ({
@@ -241,6 +249,9 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
   setSelectedPlacedWallId: (id) => set({ selectedPlacedWallId: id, selectedPlacedFurnitureId: null, selectedPlacedBlockId: null }),
   selectedPlacedBlockId: null,
   setSelectedPlacedBlockId: (id) => set({ selectedPlacedBlockId: id, selectedPlacedFurnitureId: null, selectedPlacedWallId: null }),
+
+  transformGizmoMode: 'translate',
+  setTransformGizmoMode: (mode) => set({ transformGizmoMode: mode }),
 
   activeRoomBlockType: 'empty_room',
   roomBlockHeight: 2.8,
@@ -560,6 +571,176 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
       });
       set({ activeProperty: { ...activeProperty, walls: updatedWalls } });
       showToast(`Reset Wall Rotation to [0°, 0°, 0°]`);
+    }
+  },
+
+  moveSelectedObject: (dx = 0, dy = 0, dz = 0) => {
+    const { selectedPlacedFurnitureId, selectedPlacedWallId, activeProperty, showToast, pushUndoState } = get();
+    if (!activeProperty) return;
+
+    if (selectedPlacedFurnitureId) {
+      pushUndoState();
+      const updatedFurniture = activeProperty.furniture.map((item) => {
+        if (item.id === selectedPlacedFurnitureId) {
+          const newPos: [number, number, number] = [
+            item.position[0] + dx,
+            item.position[1] + dy,
+            item.position[2] + dz
+          ];
+          return { ...item, position: newPos };
+        }
+        return item;
+      });
+      const targetObj = activeProperty.furniture.find((f) => f.id === selectedPlacedFurnitureId);
+      set({ activeProperty: { ...activeProperty, furniture: updatedFurniture } });
+      if (targetObj) showToast(`Moved ${targetObj.name}`);
+    } else if (selectedPlacedWallId) {
+      pushUndoState();
+      const updatedWalls = activeProperty.walls.map((wall) => {
+        if (wall.id === selectedPlacedWallId) {
+          return {
+            ...wall,
+            startPoint: [wall.startPoint[0] + dx, wall.startPoint[1] + dy, wall.startPoint[2] + dz] as [number, number, number],
+            endPoint: [wall.endPoint[0] + dx, wall.endPoint[1] + dy, wall.endPoint[2] + dz] as [number, number, number]
+          };
+        }
+        return wall;
+      });
+      set({ activeProperty: { ...activeProperty, walls: updatedWalls } });
+      showToast(`Moved Wall Block`);
+    }
+  },
+
+  updateSelectedObjectPosition: (pos) => {
+    const { selectedPlacedFurnitureId, selectedPlacedWallId, activeProperty } = get();
+    if (!activeProperty) return;
+
+    if (selectedPlacedFurnitureId) {
+      const updatedFurniture = activeProperty.furniture.map((item) => {
+        if (item.id === selectedPlacedFurnitureId) {
+          return { ...item, position: pos };
+        }
+        return item;
+      });
+      set({ activeProperty: { ...activeProperty, furniture: updatedFurniture } });
+    } else if (selectedPlacedWallId) {
+      const wall = activeProperty.walls.find((w) => w.id === selectedPlacedWallId);
+      if (!wall) return;
+      const midX = (wall.startPoint[0] + wall.endPoint[0]) / 2;
+      const midY = (wall.startPoint[1] + wall.endPoint[1]) / 2;
+      const midZ = (wall.startPoint[2] + wall.endPoint[2]) / 2;
+      const dx = pos[0] - midX;
+      const dy = pos[1] - midY;
+      const dz = pos[2] - midZ;
+
+      const updatedWalls = activeProperty.walls.map((w) => {
+        if (w.id === selectedPlacedWallId) {
+          return {
+            ...w,
+            startPoint: [w.startPoint[0] + dx, w.startPoint[1] + dy, w.startPoint[2] + dz] as [number, number, number],
+            endPoint: [w.endPoint[0] + dx, w.endPoint[1] + dy, w.endPoint[2] + dz] as [number, number, number]
+          };
+        }
+        return w;
+      });
+      set({ activeProperty: { ...activeProperty, walls: updatedWalls } });
+    }
+  },
+
+  updateSelectedObjectRotation: (rot) => {
+    const { selectedPlacedFurnitureId, selectedPlacedWallId, activeProperty } = get();
+    if (!activeProperty) return;
+
+    if (selectedPlacedFurnitureId) {
+      const updatedFurniture = activeProperty.furniture.map((item) => {
+        if (item.id === selectedPlacedFurnitureId) {
+          return { ...item, rotation: rot };
+        }
+        return item;
+      });
+      set({ activeProperty: { ...activeProperty, furniture: updatedFurniture } });
+    } else if (selectedPlacedWallId) {
+      const updatedWalls = activeProperty.walls.map((wall) => {
+        if (wall.id === selectedPlacedWallId) {
+          return { ...wall, rotation: rot };
+        }
+        return wall;
+      });
+      set({ activeProperty: { ...activeProperty, walls: updatedWalls } });
+    }
+  },
+
+  duplicateSelectedObject: () => {
+    const { selectedPlacedFurnitureId, selectedPlacedWallId, activeProperty, showToast, pushUndoState } = get();
+    if (!activeProperty) return;
+
+    if (selectedPlacedFurnitureId) {
+      const item = activeProperty.furniture.find((f) => f.id === selectedPlacedFurnitureId);
+      if (!item) return;
+      pushUndoState();
+      const newId = `furn_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const newItem = {
+        ...item,
+        id: newId,
+        position: [item.position[0] + 0.5, item.position[1], item.position[2] + 0.5] as [number, number, number]
+      };
+      set({
+        activeProperty: {
+          ...activeProperty,
+          furniture: [...activeProperty.furniture, newItem]
+        },
+        selectedPlacedFurnitureId: newId
+      });
+      showToast(`Duplicated ${item.name}!`);
+    } else if (selectedPlacedWallId) {
+      const wall = activeProperty.walls.find((w) => w.id === selectedPlacedWallId);
+      if (!wall) return;
+      pushUndoState();
+      const newId = `wall_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const newWall = {
+        ...wall,
+        id: newId,
+        startPoint: [wall.startPoint[0] + 0.5, wall.startPoint[1], wall.startPoint[2] + 0.5] as [number, number, number],
+        endPoint: [wall.endPoint[0] + 0.5, wall.endPoint[1], wall.endPoint[2] + 0.5] as [number, number, number]
+      };
+      set({
+        activeProperty: {
+          ...activeProperty,
+          walls: [...activeProperty.walls, newWall]
+        },
+        selectedPlacedWallId: newId
+      });
+      showToast(`Duplicated Wall Block!`);
+    }
+  },
+
+  deleteSelectedObject: () => {
+    const { selectedPlacedFurnitureId, selectedPlacedWallId, selectedPlacedBlockId, activeProperty, showToast, pushUndoState } = get();
+    if (!activeProperty) return;
+
+    if (selectedPlacedFurnitureId) {
+      const item = activeProperty.furniture.find((f) => f.id === selectedPlacedFurnitureId);
+      pushUndoState();
+      set({
+        activeProperty: {
+          ...activeProperty,
+          furniture: activeProperty.furniture.filter((f) => f.id !== selectedPlacedFurnitureId)
+        },
+        selectedPlacedFurnitureId: null
+      });
+      if (item) showToast(`Deleted ${item.name}`);
+    } else if (selectedPlacedWallId) {
+      pushUndoState();
+      set({
+        activeProperty: {
+          ...activeProperty,
+          walls: activeProperty.walls.filter((w) => w.id !== selectedPlacedWallId)
+        },
+        selectedPlacedWallId: null
+      });
+      showToast(`Demolished Wall Block`);
+    } else if (selectedPlacedBlockId) {
+      get().deleteRoomBlock(selectedPlacedBlockId);
     }
   },
   setCatalogOpen: (open) => set({ isCatalogOpen: open }),
