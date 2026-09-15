@@ -390,11 +390,12 @@ export const useRenovationStore = create<RenovationState>((set, get) => ({
 
     const id = 'block_' + Math.random().toString(36).substring(2, 9);
     const startElevation = blockData.elevationY ?? (blockData.start ? blockData.start[1] : getFloorElevationY());
+    const initialRoofType = blockData.type === 'wall' ? 'none' : (blockData.roofType || (blockData.type === 'roof' ? (selectedRoofType === 'none' ? 'flat' : selectedRoofType) : selectedRoofType));
     const newBlock: RoomBlock = {
       floorLevel: activeFloorLevel,
       elevationY: startElevation,
       roomTag: selectedRoomTag,
-      roofType: selectedRoofType,
+      roofType: initialRoofType,
       ...blockData,
       id,
       createdAt: Date.now()

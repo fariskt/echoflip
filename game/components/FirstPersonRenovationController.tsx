@@ -179,7 +179,7 @@ function findValidRaycastHit(intersects: THREE.Intersection[]): THREE.Intersecti
           store.createRoomBlock({
             type: blockTypeToCreate,
             elevationY: startPt[1],
-            roofType: store.selectedRoofType === 'none' ? 'flat' : store.selectedRoofType,
+            roofType: isRoof ? (store.selectedRoofType === 'none' ? 'flat' : store.selectedRoofType) : (blockTypeToCreate === 'wall' ? 'none' : store.selectedRoofType),
             start: startPt,
             end: snappedPt,
             height,
