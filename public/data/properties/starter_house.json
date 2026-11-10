@@ -1,0 +1,28 @@
+{
+  "id": "starter_house",
+  "name": "60m x 60m Plain Base Area",
+  "address": "Sandbox Plot, Forest Edge",
+  "estimatedValue": 500000,
+  "buyPrice": 0,
+  "isOwned": true,
+  "spawnPoint": [0, 1.6, 20],
+  "walls": [],
+  "floors": [
+    {
+      "id": "floor_main_base",
+      "roomId": "room_sandbox_base",
+      "bounds": {
+        "minX": -30,
+        "maxX": 30,
+        "minZ": -30,
+        "maxZ": 30,
+        "y": 0
+      },
+      "materialId": "floor_concrete",
+      "color": "#64748b"
+    }
+  ],
+  "dirtStains": [],
+  "fixtures": [],
+  "furniture": []
+}

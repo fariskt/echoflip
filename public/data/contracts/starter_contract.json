@@ -1,0 +1,57 @@
+{
+  "id": "contract_oakridge_renovation",
+  "title": "Oakridge Forest Turnaround",
+  "clientName": "Sarah Jenkins (Forest Homeowner)",
+  "description": "Hi there! I just acquired this cozy forest plot in Oakridge. It needs cleaning, custom flooring, built walls, and living room furniture!",
+  "budget": 5000,
+  "payout": 4200,
+  "propertyId": "starter_house",
+  "isCompleted": false,
+  "tasks": [
+    {
+      "id": "task_scrub_stains",
+      "description": "Scrub dirt stains off walls and floors",
+      "type": "scrub_stains",
+      "targetCount": 0,
+      "currentCount": 0,
+      "reward": 400,
+      "isCompleted": true
+    },
+    {
+      "id": "task_paint_walls",
+      "description": "Paint walls with fresh coat of paint",
+      "type": "paint_walls",
+      "targetCount": 3,
+      "currentCount": 0,
+      "reward": 600,
+      "isCompleted": false
+    },
+    {
+      "id": "task_change_flooring",
+      "description": "Install new flooring (Wood/Tile/Carpet)",
+      "type": "change_flooring",
+      "targetCount": 1,
+      "currentCount": 0,
+      "reward": 800,
+      "isCompleted": false
+    },
+    {
+      "id": "task_repair_fixtures",
+      "description": "Repair broken lighting and plumbing fixtures",
+      "type": "repair_fixtures",
+      "targetCount": 2,
+      "currentCount": 0,
+      "reward": 500,
+      "isCompleted": false
+    },
+    {
+      "id": "task_place_furniture",
+      "description": "Unpack and place living room furniture (Sofa/Table/Bed)",
+      "type": "place_furniture",
+      "targetCount": 3,
+      "currentCount": 0,
+      "reward": 1000,
+      "isCompleted": false
+    }
+  ]
+}
